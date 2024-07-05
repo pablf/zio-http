@@ -313,7 +313,10 @@ object Body {
   )(implicit
     trace: Trace,
   ): Body[R] =
-    fromStream[R, CharSequence](stream.map(seq => Chunk.fromArray(seq.toString.getBytes(charset))).flattenChunks, contentLength)
+    fromStream[R, CharSequence](
+      stream.map(seq => Chunk.fromArray(seq.toString.getBytes(charset))).flattenChunks,
+      contentLength,
+    )
 
   /**
    * Constructs a [[zio.http.Body]] from a stream of text with unknown length
