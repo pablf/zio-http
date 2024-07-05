@@ -36,7 +36,7 @@ import zio.http.multipart.mixed.MultipartMixed
  * into such representations (such as textual data using some character
  * encoding, the contents of files, JSON, etc.).
  */
-trait Body { self =>
+trait Body[-R] { self =>
 
   /**
    * A right-biased way of combining two bodies. If either body is empty, the
@@ -58,7 +58,7 @@ trait Body { self =>
    * val decodedPerson = body.to[Person]
    * }}}
    */
-  def to[A](implicit codec: BinaryCodec[A], trace: Trace): Task[A] =
+  def to[A](implicit codec: BinaryCodec[A], trace: Trace): RIO[R, A] =
     asChunk.flatMap(bytes => ZIO.fromEither(codec.decode(bytes)))
 
   /**
@@ -66,21 +66,21 @@ trait Body { self =>
    * Note that attempting to decode a large stream of bytes into an array could
    * result in an out of memory error.
    */
-  def asArray(implicit trace: Trace): Task[Array[Byte]]
+  def asArray(implicit trace: Trace): RIO[R, Array[Byte]]
 
   /**
    * Returns an effect that decodes the content of the body as a chunk of bytes.
    * Note that attempting to decode a large stream of bytes into a chunk could
    * result in an out of memory error.
    */
-  def asChunk(implicit trace: Trace): Task[Chunk[Byte]]
+  def asChunk(implicit trace: Trace): RIO[R, Chunk[Byte]]
 
   /**
    * Returns an effect that decodes the content of the body as a multipart form.
    * Note that attempting to decode a large stream of bytes into a form could
    * result in an out of memory error.
    */
-  def asMultipartForm(implicit trace: Trace): Task[Form] = {
+  def asMultipartForm(implicit trace: Trace): RIO[R, Form] = {
     boundary match {
       case Some(boundary) => StreamingForm(asStream, boundary).collectAll
       case _              =>
@@ -99,7 +99,7 @@ trait Body { self =>
    * stream of bytes, which has to be consumed asynchronously by the user to get
    * the next FormField from the stream.
    */
-  def asMultipartFormStream(implicit trace: Trace): Task[StreamingForm] =
+  def asMultipartFormStream(implicit trace: Trace): RIO[R, StreamingForm] =
     boundary match {
       case Some(boundary) =>
         ZIO.succeed(
@@ -118,7 +118,7 @@ trait Body { self =>
    * contents (binary stream), Part objects can be easily converted to a Body
    * objects which provide vast API for extracting their contents.
    */
-  def asMultipartMixed(implicit trace: Trace): Task[MultipartMixed] =
+  def asMultipartMixed(implicit trace: Trace): RIO[R, MultipartMixed] =
     ZIO.fromOption {
       MultipartMixed
         .fromBody(self)
@@ -130,14 +130,14 @@ trait Body { self =>
    * to use with large bodies, because the elements of the returned stream are
    * lazily produced from the body.
    */
-  def asStream(implicit trace: Trace): ZStream[Any, Throwable, Byte]
+  def asStream(implicit trace: Trace): ZStream[R, Throwable, Byte]
 
   /**
    * Decodes the content of the body as a string with the default charset. Note
    * that attempting to decode a large stream of bytes into a string could
    * result in an out of memory error.
    */
-  final def asString(implicit trace: Trace): Task[String] =
+  final def asString(implicit trace: Trace): RIO[R, String] =
     asArray.map(new String(_, Charsets.Http))
 
   /**
@@ -145,13 +145,13 @@ trait Body { self =>
    * that attempting to decode a large stream of bytes into a string could
    * result in an out of memory error.
    */
-  final def asString(charset: Charset)(implicit trace: Trace): Task[String] =
+  final def asString(charset: Charset)(implicit trace: Trace): RIO[R, String] =
     asArray.map(new String(_, charset))
 
   /**
    * Returns an effect that decodes the content of the body as form data.
    */
-  def asURLEncodedForm(implicit trace: Trace): Task[Form] =
+  def asURLEncodedForm(implicit trace: Trace): RIO[R, Form] =
     asString.flatMap(string => ZIO.fromEither(Form.fromURLEncoded(string, Charsets.Http)))
 
   /**
@@ -291,38 +291,41 @@ object Body {
   def fromStream[A](stream: ZStream[Any, Throwable, A])(implicit codec: BinaryCodec[A], trace: Trace): Body =
     StreamBody(stream >>> codec.streamEncoder, knownContentLength = None)
 
+  def fromStream[R, A](stream: ZStream[R, Throwable, A])(implicit codec: BinaryCodec[A], trace: Trace): Body[R] =
+    StreamBody[R](stream >>> codec.streamEncoder, knownContentLength = None)
+
   /**
    * Constructs a [[zio.http.Body]] from a stream of bytes of unknown length,
    * using chunked transfer encoding.
    */
-  def fromStreamChunked(stream: ZStream[Any, Throwable, Byte]): Body =
-    StreamBody(stream, knownContentLength = None)
+  def fromStreamChunked[R](stream: ZStream[R, Throwable, Byte]): Body[R] =
+    StreamBody[R](stream, knownContentLength = None)
 
   /**
    * Constructs a [[zio.http.Body]] from a stream of text with known length,
    * using the specified character set, which defaults to the HTTP character
    * set.
    */
-  def fromCharSequenceStream(
-    stream: ZStream[Any, Throwable, CharSequence],
+  def fromCharSequenceStream[R](
+    stream: ZStream[R, Throwable, CharSequence],
     contentLength: Long,
     charset: Charset = Charsets.Http,
   )(implicit
     trace: Trace,
-  ): Body =
-    fromStream(stream.map(seq => Chunk.fromArray(seq.toString.getBytes(charset))).flattenChunks, contentLength)
+  ): Body[R] =
+    fromStream[R, CharSequence](stream.map(seq => Chunk.fromArray(seq.toString.getBytes(charset))).flattenChunks, contentLength)
 
   /**
    * Constructs a [[zio.http.Body]] from a stream of text with unknown length
    * using chunked transfer encoding, using the specified character set, which
    * defaults to the HTTP character set.
    */
-  def fromCharSequenceStreamChunked(
-    stream: ZStream[Any, Throwable, CharSequence],
+  def fromCharSequenceStreamChunked[R](
+    stream: ZStream[R, Throwable, CharSequence],
     charset: Charset = Charsets.Http,
   )(implicit
     trace: Trace,
-  ): Body =
+  ): Body[R] =
     fromStreamChunked(stream.map(seq => Chunk.fromArray(seq.toString.getBytes(charset))).flattenChunks)
 
   /**
@@ -482,22 +485,22 @@ object Body {
     override def knownContentLength: Option[Long] = Some(fileSize)
   }
 
-  private[zio] final case class StreamBody(
-    stream: ZStream[Any, Throwable, Byte],
+  private[zio] final case class StreamBody[R](
+    stream: ZStream[R, Throwable, Byte],
     knownContentLength: Option[Long],
     override val mediaType: Option[MediaType] = None,
     override val boundary: Option[Boundary] = None,
-  ) extends Body {
+  ) extends Body[R] {
 
-    override def asArray(implicit trace: Trace): Task[Array[Byte]] = asChunk.map(_.toArray)
+    override def asArray(implicit trace: Trace): RIO[R, Array[Byte]] = asChunk.map(_.toArray)
 
     override def isComplete: Boolean = false
 
     override def isEmpty: Boolean = false
 
-    override def asChunk(implicit trace: Trace): Task[Chunk[Byte]] = stream.runCollect
+    override def asChunk(implicit trace: Trace): RIO[R, Chunk[Byte]] = stream.runCollect
 
-    override def asStream(implicit trace: Trace): ZStream[Any, Throwable, Byte] = stream
+    override def asStream(implicit trace: Trace): ZStream[R, Throwable, Byte] = stream
 
     override def contentType(newMediaType: MediaType): Body = copy(mediaType = Some(newMediaType))
 

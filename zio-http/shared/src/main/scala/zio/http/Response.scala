@@ -27,10 +27,10 @@ import zio.stream.ZStream
 import zio.http.internal.HeaderOps
 import zio.http.template.Html
 
-final case class Response(
+final case class Response[R](
   status: Status = Status.Ok,
   headers: Headers = Headers.empty,
-  body: Body = Body.empty,
+  body: Body[R] = Body.empty,
 ) extends HeaderOps[Response] { self =>
 
   // To be used by encoders to avoid re-encoding static responses (optimization)
@@ -180,8 +180,8 @@ object Response {
    * @param data
    *   \- stream of data to be sent as Server Sent Events
    */
-  def fromServerSentEvents(data: ZStream[Any, Nothing, ServerSentEvent])(implicit trace: Trace): Response =
-    Response(Status.Ok, contentTypeEventStream, Body.fromCharSequenceStreamChunked(data.map(_.encode)))
+  def fromServerSentEvents[R](data: ZStream[E, Nothing, ServerSentEvent])(implicit trace: Trace): Response[R] =
+    Response(Status.Ok, contentTypeEventStream, Body.fromCharSequenceStreamChunked[R](data.map(_.encode)))
 
   /**
    * Creates a new response for the provided socket app
