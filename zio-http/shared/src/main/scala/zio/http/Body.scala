@@ -36,6 +36,7 @@ import zio.http.multipart.mixed.MultipartMixed
  * into such representations (such as textual data using some character
  * encoding, the contents of files, JSON, etc.).
  */
+type Body = Body[Any]
 trait Body[-R] { self =>
 
   /**

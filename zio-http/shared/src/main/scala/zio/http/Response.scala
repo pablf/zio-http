@@ -27,7 +27,8 @@ import zio.stream.ZStream
 import zio.http.internal.HeaderOps
 import zio.http.template.Html
 
-final case class Response[R](
+type Response = Response[Any]
+final case class Response[-R](
   status: Status = Status.Ok,
   headers: Headers = Headers.empty,
   body: Body[R] = Body.empty,
