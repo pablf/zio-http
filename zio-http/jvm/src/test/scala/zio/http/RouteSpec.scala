@@ -98,8 +98,8 @@ object RouteSpec extends ZIOHttpSpec {
             )
 
           request = Request.get(URL.decode("/endpoint").toOption.get)
-          response      <- errorHandled.toRoutes.runZIO(request)
-          result        <- p.await.catchAllCause(c => ZIO.succeed(c.prettyPrint))
+          response <- errorHandled.toRoutes.runZIO(request)
+          result   <- p.await.catchAllCause(c => ZIO.succeed(c.prettyPrint))
           errorMsg <- response.body.asString
 
         } yield assertTrue(
