@@ -144,7 +144,7 @@ object Response {
     val message2 = OutputEncoder.encodeHtml(if (message == null) status.text else message)
 
     if (useWarningHeader) Response(status = status, headers = Headers(Header.Warning(199, "ZIO HTTP", message2)))
-    else Response(status = status, body = Body.fromText(message2))
+    else Response(status = status, body = Body.fromString(message2))
   }
 
   def error(status: Status.Error, message: String): Response =
