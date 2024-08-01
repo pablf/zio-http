@@ -16,11 +16,11 @@ object ErrorInBodySpec extends HttpRunnableSpec {
 
   def notInBodySpec =
     suite("ErrorNotInBodySpec") {
-      val test = test("error not in body") {
+      val tests = test("error not in body") {
         val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
         assertZIO(res)(isEmptyString)
       }
-      suite("app without request streaming") { ZIO.scoped(app.as(List(test))) }
+      suite("app without request streaming") { ZIO.scoped(app.as(List(tests))) }
     }.provideSome[DynamicServer & Server & Client](Scope.default)
       .provideShared(
         ZLayer.succeed(Server.Config.default),
@@ -32,11 +32,11 @@ object ErrorInBodySpec extends HttpRunnableSpec {
 
   def inBodySpec =
     suite("ErrorInBodySpec") {
-      val test = test("error in body") {
+      val tests = test("error in body") {
         val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
         assertZIO(res)(not(isEmptyString))
       }
-      suite("app without request streaming") { ZIO.scoped(app.as(List(test))) }
+      suite("app without request streaming") { ZIO.scoped(app.as(List(tests))) }
     }.provideSome[DynamicServer & Server & Client](Scope.default)
       .provideShared(
         ZLayer.succeed(Server.Config.default.errorInBody(true)),
