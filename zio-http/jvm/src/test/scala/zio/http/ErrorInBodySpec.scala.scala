@@ -20,7 +20,7 @@ object ErrorInBodySpec extends HttpRunnableSpec {
       }.provide(ZLayer.succeed(Server.Config.default)),
       test("error in body") {
         val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
-        assertZIO(res)(isNotEmptyString)
+        assertZIO(res)(not(isEmptyString))
       }.provide(ZLayer.succeed(Server.Config.default.errorInBody(true))),
     )
       .provide(
