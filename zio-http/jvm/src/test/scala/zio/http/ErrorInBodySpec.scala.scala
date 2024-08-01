@@ -9,7 +9,7 @@ import zio.http.netty.NettyConfig
 
 object ErrorInBodySpec extends HttpRunnableSpec {
 
-  val app = Routes(Method.GET / "test" -> Handler.ok)
+  val routes = Routes(Method.GET / "test" -> Handler.ok)
 
   override def spec =
     suite("ErrorInBodySpec")(
