@@ -579,7 +579,7 @@ private[codec] object EncoderDecoder {
         }
       }
 
-    private def genericEncode[T](codecs: Chunk[HttpCodec[_, A]], inputs: Array[Any], init: T, add: (T, T) => T): Option[T] = {
+    private def genericEncode[T](codecs: Chunk[HttpCodec[_, A]], inputs: Array[Any], init: T, add: (T, T) => T): T = {
       var res = init
       for (i <- 0 until inputs.length) {
         val codec = codecs(i).erase
@@ -590,17 +590,28 @@ private[codec] object EncoderDecoder {
       res
     }
 
+    private def simpleEncode[A](codecs: Chunk[SimpleCodec[A]], inputs: Array[Any]): Option[A] = {
+      codecs.headOption.map { codec =>
+        codec match {
+          case _: SimpleCodec.Unspecified[_] => Some(inputs(0).asInstanceOf[A])
+          case SimpleCodec.Specified(elem) => Some(elem)
+        }
+      }
+
     private def encodePath(inputs: Array[Any]): Path =
       genericEncode(flattened.path, inputs, Path.empty, _ ++ _)
 
     private def encodeQuery(inputs: Array[Any]): QueryParams =
       genericEncode(flattened.query, inputs, QueryParams.empty, case (params, newParam) => params.addQueryParams(newParam.name, query.textCodec.encode()))
 
-
     private def encodeHeaders(inputs: Array[Any]): Headers =
       genericEncode(flattened.header, inputs, Headers.empty, case (headers, header) => headers ++ Headers(header.name, header.textCodec.encode))
+
     private def encodeStatus(inputs: Array[Any]): Option[Status] =
-      genericEncode()
+      simpleEncode(flattened.status, inputs)
+
+    private def encodeMethod(inputs: Array[Any]): Option[Method] =
+      simpleEncode(flattened.method, inputs)
 
     private def encodePath(inputs: Array[Any]): Path = {
       var path: Path = Path.empty
@@ -647,16 +658,7 @@ private[codec] object EncoderDecoder {
       queryParams
     }
 
-    private def encodeStatus(inputs: Array[Any]): Option[Status] = {
-      if (flattened.status.length == 0) {
-        None
-      } else {
-        flattened.status(0) match {
-          case _: SimpleCodec.Unspecified[_] => Some(inputs(0).asInstanceOf[Status])
-          case SimpleCodec.Specified(status) => Some(status)
-        }
-      }
-    }
+    
 
     private def encodeHeaders(inputs: Array[Any]): Headers = {
       var headers = Headers.empty
@@ -675,14 +677,6 @@ private[codec] object EncoderDecoder {
 
       headers
     }
-
-    private def encodeMethod(inputs: Array[Any]): Option[zio.http.Method]                      =
-      if (flattened.method.nonEmpty) {
-        flattened.method.head match {
-          case _: SimpleCodec.Unspecified[_] => Some(inputs(0).asInstanceOf[Method])
-          case SimpleCodec.Specified(method) => Some(method)
-        }
-      } else None
 
     private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
       inputs.length match {
