@@ -327,7 +327,7 @@ private[http] trait HandlerAspects extends zio.http.internal.HeaderModifier[Hand
    * Beautify the error response.
    */
   def beautifyErrors: HandlerAspect[Any, Unit] =
-    intercept(replaceErrorResponse)
+    interceptZIO(replaceErrorResponse)
 
   /**
    * Creates an authentication middleware that only allows authenticated
@@ -524,7 +524,7 @@ private[http] trait HandlerAspects extends zio.http.internal.HeaderModifier[Hand
    * request.
    */
   def interceptZIO(
-    fromRequestAndResponse: (Request, Response) => ZIO[Any, Throwable, Response],
+    fromRequestAndResponse: (Request, Response) => ZIO[Any, Nothing, Response],
   ): HandlerAspect[Any, Unit] =
     interceptHandlerStateful(Handler.identity[Request].map(req => (req, (req, ()))))(
       Handler.fromFunctionZIO[(Request, Response)] { case (req, res) => fromRequestAndResponse(req, res) },
@@ -844,47 +844,52 @@ private[http] trait HandlerAspects extends zio.http.internal.HeaderModifier[Hand
   ): HandlerAspect[Env, Unit] =
     ifRequestThenElseZIO(condition)(ifFalse = identity, ifTrue = middleware)
 
-  private def replaceErrorResponse(request: Request, response: Response): ZIO[Any, Throwable, Response] =
-    response.body.asString.map { errorMessage =>
-      def htmlResponse: Body = {
-        val data = Template.container(s"${response.status}") {
+  private def replaceErrorResponse(request: Request, response: Response): ZIO[Any, Nothing, Response] = {
+    def htmlResponse(errorMessage: String): Body = {
+      val data = Template.container(s"${response.status}") {
+        div(
           div(
-            div(
-              styles := "text-align: center",
-              div(s"${response.status.code}", styles := "font-size: 20em"),
-              div(errorMessage),
-            ),
-          )
-        }
-        Body.fromString("<!DOCTYPE html>" + data.encode)
+            styles := "text-align: center",
+            div(s"${response.status.code}", styles := "font-size: 20em"),
+            div(errorMessage),
+          ),
+        )
       }
+      Body.fromString("<!DOCTYPE html>" + data.encode)
+    }
 
-      def textResponse: Body = {
-        val status = response.status.code
-        val data   = s"${scala.Console.BOLD}${scala.Console.RED}${response.status} ${scala.Console.RESET} - " +
-          s"${scala.Console.BOLD}${scala.Console.CYAN}$status ${scala.Console.RESET} - " +
-          s"$errorMessage"
-        Body.fromString(data)
-      }
+    def textResponse(errorMessage: String): Body = {
+      val status = response.status.code
+      val data   = s"${scala.Console.BOLD}${scala.Console.RED}${response.status} ${scala.Console.RESET} - " +
+        s"${scala.Console.BOLD}${scala.Console.CYAN}$status ${scala.Console.RESET} - " +
+        s"$errorMessage"
+      Body.fromString(data)
+    }
 
-      if (response.status.isError) {
-        request.header(Header.Accept) match {
-          case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.text.`html`) =>
+    if (response.status.isError) {
+      request.header(Header.Accept) match {
+        case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.text.`html`) =>
+          response.body.asString.catchAll(err => ZIO.succeed("")).map { errorMessage =>
             response.copy(
-              body = htmlResponse,
+              body = htmlResponse(errorMessage),
               headers = Headers(Header.ContentType(MediaType.text.`html`)),
             )
-          case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.any)         =>
+          }
+        case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.any)         =>
+          response.body.asString.catchAll(err => ZIO.succeed("")).map { errorMessage =>
             response.copy(
-              body = textResponse,
+              body = textResponse(errorMessage),
               headers = Headers(Header.ContentType(MediaType.text.`plain`)),
             )
-          case _                                                                           => response
-        }
+          }
 
-      } else
-        response
-    }
+        case _ => ZIO.succeed(response)
+      }
+
+    } else
+      ZIO.succeed(response)
+
+  }
 
   private[http] val defaultBoundaries = MetricKeyType.Histogram.Boundaries.fromChunk(
     Chunk(
