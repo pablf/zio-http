@@ -89,7 +89,7 @@ private[http] object BodyCodec {
     def decodeFromBody(body: Body)(implicit trace: Trace): IO[Nothing, Unit] = ZIO.unit
 
     def encodeToField(value: Unit, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): FormField =
-      FormField.empty
+      throw HttpCodecError.CustomError("UnsupportedEncodingType", s"Unit can't be encoded to a FormField")
 
     def encodeToBody(value: Unit, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): Body = Body.empty
 
@@ -108,7 +108,7 @@ private[http] object BodyCodec {
     def decodeFromField(field: FormField)(implicit trace: Trace): IO[Throwable, A] = {
       val codec0 = codec
         .lookup(field.contentType)
-        .toRight(HttpCodecError.CustomError("UnsupportedMediaType", s"MediaType: ${body.mediaType}"))
+        .toRight(HttpCodecError.CustomError("UnsupportedMediaType", s"MediaType: ${field.contentType}"))
       codec0 match {
         case Left(error)                                                       => ZIO.fail(error)
         case Right(BinaryCodecWithSchema(_, schema)) if schema == Schema[Unit] =>
@@ -164,7 +164,7 @@ private[http] object BodyCodec {
       ZIO.fromEither {
         codec
           .lookup(field.contentType)
-          .toRight(HttpCodecError.CustomError("UnsupportedMediaType", s"MediaType: ${body.mediaType}"))
+          .toRight(HttpCodecError.CustomError("UnsupportedMediaType", s"MediaType: ${field.contentType}"))
           .map { case BinaryCodecWithSchema(codec, schema) =>
             (field.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
           }
