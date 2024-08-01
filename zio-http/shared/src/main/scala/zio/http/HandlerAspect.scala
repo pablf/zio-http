@@ -520,6 +520,17 @@ private[http] trait HandlerAspects extends zio.http.internal.HeaderModifier[Hand
     )
 
   /**
+   * Creates middleware that modifies the response, potentially using the
+   * request.
+   */
+  def interceptZIO(
+    fromRequestAndResponse: (Request, Response) => ZIO[Any, Throwable, Response],
+  ): HandlerAspect[Any, Unit] =
+    interceptHandlerStateful(Handler.identity[Request].map(req => (req, (req, ()))))(
+      Handler.fromFunctionZIO[(Request, Response)] { case (req, res) => fromRequestAndResponse(req, res) },
+    )
+
+  /**
    * Creates middleware that will apply the specified stateless handlers to
    * incoming and outgoing requests. If the incoming handler fails, then the
    * outgoing handler will not be invoked.
@@ -833,51 +844,47 @@ private[http] trait HandlerAspects extends zio.http.internal.HeaderModifier[Hand
   ): HandlerAspect[Env, Unit] =
     ifRequestThenElseZIO(condition)(ifFalse = identity, ifTrue = middleware)
 
-  private def replaceErrorResponse(request: Request, response: Response): Response = {
-    def htmlResponse: Body = {
-      val message: String = response.header(Header.Warning).map(_.text).getOrElse("")
-      val data            = Template.container(s"${response.status}") {
-        div(
+  private def replaceErrorResponse(request: Request, response: Response): ZIO[Any, Throwable, Response] =
+    response.body.asString.map { errorMessage =>
+      def htmlResponse: Body = {
+        val data = Template.container(s"${response.status}") {
           div(
-            styles := "text-align: center",
-            div(s"${response.status.code}", styles := "font-size: 20em"),
-            div(message),
-          ),
-        )
-      }
-      Body.fromString("<!DOCTYPE html>" + data.encode)
-    }
-
-    def textResponse: Body = {
-      Body.fromString(formatErrorMessage(response))
-    }
-
-    if (response.status.isError) {
-      request.header(Header.Accept) match {
-        case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.text.`html`) =>
-          response.copy(
-            body = htmlResponse,
-            headers = Headers(Header.ContentType(MediaType.text.`html`)),
+            div(
+              styles := "text-align: center",
+              div(s"${response.status.code}", styles := "font-size: 20em"),
+              div(errorMessage),
+            ),
           )
-        case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.any)         =>
-          response.copy(
-            body = textResponse,
-            headers = Headers(Header.ContentType(MediaType.text.`plain`)),
-          )
-        case _                                                                           => response
+        }
+        Body.fromString("<!DOCTYPE html>" + data.encode)
       }
 
-    } else
-      response
-  }
+      def textResponse: Body = {
+        val status = response.status.code
+        val data   = s"${scala.Console.BOLD}${scala.Console.RED}${response.status} ${scala.Console.RESET} - " +
+          s"${scala.Console.BOLD}${scala.Console.CYAN}$status ${scala.Console.RESET} - " +
+          s"$errorMessage"
+        Body.fromString(data)
+      }
 
-  private def formatErrorMessage(response: Response) = {
-    val errorMessage: String = response.header(Header.Warning).map(_.text).getOrElse("")
-    val status               = response.status.code
-    s"${scala.Console.BOLD}${scala.Console.RED}${response.status} ${scala.Console.RESET} - " +
-      s"${scala.Console.BOLD}${scala.Console.CYAN}$status ${scala.Console.RESET} - " +
-      s"$errorMessage"
-  }
+      if (response.status.isError) {
+        request.header(Header.Accept) match {
+          case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.text.`html`) =>
+            response.copy(
+              body = htmlResponse,
+              headers = Headers(Header.ContentType(MediaType.text.`html`)),
+            )
+          case Some(value) if value.mimeTypes.exists(_.mediaType == MediaType.any)         =>
+            response.copy(
+              body = textResponse,
+              headers = Headers(Header.ContentType(MediaType.text.`plain`)),
+            )
+          case _                                                                           => response
+        }
+
+      } else
+        response
+    }
 
   private[http] val defaultBoundaries = MetricKeyType.Histogram.Boundaries.fromChunk(
     Chunk(
