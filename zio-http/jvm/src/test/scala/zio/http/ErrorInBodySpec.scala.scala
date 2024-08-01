@@ -12,12 +12,12 @@ object ErrorInBodySpec extends HttpRunnableSpec {
 
   private val app = serve
 
-  private val routes = Routes(Method.GET / "test" -> Handler.ok)
+  private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw Throwable("ERROR")))
 
   def notInBodySpec =
     suite("ErrorNotInBodySpec") {
       val tests = test("error not in body") {
-        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
+        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "test")
         assertZIO(res)(isEmptyString)
       }
       suite("app without request streaming") { ZIO.scoped(app.as(List(tests))) }
@@ -33,7 +33,7 @@ object ErrorInBodySpec extends HttpRunnableSpec {
   def inBodySpec =
     suite("ErrorInBodySpec") {
       val tests = test("error in body") {
-        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
+        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "test")
         assertZIO(res)(not(isEmptyString))
       }
       suite("app without request streaming") { ZIO.scoped(app.as(List(tests))) }
