@@ -10,31 +10,46 @@ import zio.http.netty.NettyConfig
 
 object ErrorInBodySpec extends HttpRunnableSpec {
 
-  val routes = Routes(Method.GET / "test" -> Handler.ok)
+  private val app = serve
+
+  private val routes = Routes(Method.GET / "test" -> Handler.ok)
+
+  def notInBodySpec =
+    suite("ErrorNotInBodySpec") {
+      val test = test("error not in body") {
+        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
+        assertZIO(res)(isEmptyString)
+      }
+      suite("app without request streaming") { ZIO.scoped(app.as(List(test))) }
+    }.provideSome[DynamicServer & Server & Client](Scope.default)
+      .provideShared(
+        ZLayer.succeed(Server.Config.default),
+        DynamicServer.live,
+        Server.customized,
+        ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
+        Client.default,
+      ) @@ sequential @@ withLiveClock
+
+  def inBodySpec =
+    suite("ErrorInBodySpec") {
+      val test = test("error in body") {
+        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
+        assertZIO(res)(not(isEmptyString))
+      }
+      suite("app without request streaming") { ZIO.scoped(app.as(List(test))) }
+    }.provideSome[DynamicServer & Server & Client](Scope.default)
+      .provideShared(
+        ZLayer.succeed(Server.Config.default.errorInBody(true)),
+        DynamicServer.live,
+        Server.customized,
+        ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
+        Client.default,
+      ) @@ sequential @@ withLiveClock
 
   override def spec =
     suite("ErrorInBodySpec")(
-      test("error not in body") {
-        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
-        assertZIO(res)(isEmptyString)
-      }.provideSome(
-        ZLayer.succeed(Server.Config.default),
-        Scope.default,
-        DynamicServer.live,
-        Server.customized,
-        ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
-        Client.default,
-      ),
-      test("error in body") {
-        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
-        assertZIO(res)(not(isEmptyString))
-      }.provideSome(
-        ZLayer.succeed(Server.Config.default),
-        Scope.default,
-        DynamicServer.live,
-        Server.customized,
-        ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
-        Client.default,
-      ),
+      notInBodySpec,
+      inBodySpec,
     ) @@ sequential @@ withLiveClock
+
 }
