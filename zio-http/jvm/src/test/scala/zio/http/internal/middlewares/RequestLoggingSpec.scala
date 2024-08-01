@@ -95,7 +95,7 @@ object RequestLoggingSpec extends ZIOHttpSpec with HttpAppTestExtensions {
           first = entries.head
         } yield assertTrue(
           first.message() == "Http request served",
-          first.annotations.removed("response_size") == Map(
+          first.annotations.filterNot(_._2 == "response_size") == Map(
             "method"       -> "GET",
             "duration_ms"  -> "0",
             "url"          -> "/defect",
