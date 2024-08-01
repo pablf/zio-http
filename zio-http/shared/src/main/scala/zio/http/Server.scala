@@ -179,8 +179,8 @@ object Server extends ServerPlatformSpecific {
         zio.Config.int("max-header-size").withDefault(Config.default.maxHeaderSize) ++
         zio.Config.boolean("log-warning-on-fatal-error").withDefault(Config.default.logWarningOnFatalError) ++
         zio.Config.duration("graceful-shutdown-timeout").withDefault(Config.default.gracefulShutdownTimeout) ++
-        zio.Config.duration("idle-timeout").optional.withDefault(Config.default.idleTimeout)
-      zio.Config.boolean("error-in-body").optional.withDefault(Config.default.errorInBody)
+        zio.Config.duration("idle-timeout").optional.withDefault(Config.default.idleTimeout) ++
+        zio.Config.boolean("error-in-body").optional.withDefault(Config.default.errorInBody)
     }.map {
       case (
             sslConfig,
