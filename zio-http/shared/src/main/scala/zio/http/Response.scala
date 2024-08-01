@@ -215,6 +215,25 @@ object Response {
     }
   }
 
+  /**
+   * Creates a new response for the specified throwable. Note that this method
+   * relies on the runtime class of the throwable.
+   */
+  def fromThrowable(throwable: Throwable, msgInBody: Boolean): Response = {
+    val msg = if (msgInBody) throwable.getMessage() else null
+    throwable match { // TODO: Enhance
+      case _: AccessDeniedException           => error(Status.Forbidden, msg)
+      case _: IllegalAccessException          => error(Status.Forbidden, msg)
+      case _: IllegalAccessError              => error(Status.Forbidden, msg)
+      case _: NotDirectoryException           => error(Status.BadRequest, msg)
+      case _: IllegalArgumentException        => error(Status.BadRequest, msg)
+      case _: java.io.FileNotFoundException   => error(Status.NotFound, msg)
+      case _: java.net.ConnectException       => error(Status.ServiceUnavailable, msg)
+      case _: java.net.SocketTimeoutException => error(Status.GatewayTimeout, msg)
+      case _                                  => error(Status.InternalServerError, msg)
+    }
+  }
+
   def gatewayTimeout: Response = error(Status.GatewayTimeout)
 
   def gatewayTimeout(message: String): Response = error(Status.GatewayTimeout, message)
