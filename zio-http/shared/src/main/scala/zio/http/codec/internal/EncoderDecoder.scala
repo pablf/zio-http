@@ -579,12 +579,12 @@ private[codec] object EncoderDecoder {
         }
       }
 
-    private def genericEncode[T](codecs: Chunk[HttpCodec[_, A]], inputs: Array[Any], init: T, add: (T, T) => T): T = {
+    private def genericEncode[A, Codec](codecs: Chunk[Codec], inputs: Array[Any], init: A, add: (A, A) => A, encoding: (Codec, A, A) => A): A = {
       var res = init
       for (i <- 0 until inputs.length) {
         val codec = codecs(i).erase
         val input = inputs(i)
-        val encoded = codec.encode(input)
+        val encoded = encoding(codec, input, res)
         res = add(res, encoded)
       }
       res
@@ -599,7 +599,17 @@ private[codec] object EncoderDecoder {
       }
 
     private def encodePath(inputs: Array[Any]): Path =
-      genericEncode(flattened.path, inputs, Path.empty, _ ++ _)
+      genericEncode(
+        flattened.path,
+        inputs,
+        Path.empty,
+        _ ++ _, 
+        (codec, a, acc) => pathCodec.encode(a) match {
+            case Left(error)  =>
+              throw HttpCodecError.MalformedPath(a, acc, error)
+            case Right(value) => value
+          }
+        )
 
     private def encodeQuery(inputs: Array[Any]): QueryParams =
       genericEncode(flattened.query, inputs, QueryParams.empty, case (params, newParam) => params.addQueryParams(newParam.name, query.textCodec.encode()))
