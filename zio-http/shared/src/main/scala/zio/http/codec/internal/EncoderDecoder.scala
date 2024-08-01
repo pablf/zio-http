@@ -199,7 +199,7 @@ private[codec] object EncoderDecoder {
     }
 
     private def decodePaths(path: Path, inputs: Array[Any]): Unit =
-      genericDecode[Path, PathCodec](
+      genericDecode[Path, PathCodec[Any]](
         path,
         flattened.path,
         inputs,
@@ -212,7 +212,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeQuery(queryParams: QueryParams, inputs: Array[Any]): Unit =
-      genericDecode[Query, QueryCodec](
+      genericDecode[QueryParams, QueryCodec[Any]](
         queryParams,
         flattened.query,
         inputs,
@@ -229,7 +229,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit =
-      genericDecode[Headers, HeaderCodec](
+      genericDecode[Headers, HeaderCodec[Any]](
         method,
         flattened.method,
         inputs,
@@ -246,7 +246,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeStatus(status: Status, inputs: Array[Any]): Unit =
-      genericDecode[Status, SimpleCodec[Status, Unit]](
+      genericDecode[Status, SimpleCodec[Status, Any]](
         status,
         flattened.status,
         inputs,
@@ -259,7 +259,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeMethod(method: Method, inputs: Array[Any]): Unit =
-      genericDecode[Method, SimpleCodec[Method, Unit]](
+      genericDecode[Method, SimpleCodec[Method, Any]](
         method,
         flattened.method,
         inputs,
@@ -292,13 +292,14 @@ private[codec] object EncoderDecoder {
       }
     }
 
-    private def decodeForm(form: Form, inputs: Array[Any]): ZIO[Any, Throwable, Unit] =
-      form.collectAll.flatMap { collectedForm =>
+    private def decodeForm(form: Task[StreamingForm], inputs: Array[Any]): ZIO[Any, Throwable, Unit] =
+      form.flatMap(_.collectAll).flatMap { collectedForm =>
         ZIO.foreachDiscard(collectedForm.formData) { field =>
-          val i     = indexByName
+          val codecs = flattened.content
+          val i      = indexByName
             .get(field.name)
             .getOrElse(throw HttpCodecError.MalformedBody(s"Unexpected multipart/form-data field: ${field.name}"))
-          val codec = codecs(i).erase
+          val codec  = codecs(i).erase
           for {
             decoded <- codec.decodeFromField(field)
             _       <- ZIO.attempt { inputs(i) = decoded }
@@ -311,7 +312,7 @@ private[codec] object EncoderDecoder {
         for (i <- 0 until inputs.length) {
           if (inputs(i) == null)
             throw HttpCodecError.MalformedBody(
-              s"Missing multipart/form-data field (${Try(nameByIndex(idx))}",
+              s"Missing multipart/form-data field (${Try(nameByIndex(i))}",
             )
         }
       }
@@ -324,23 +325,23 @@ private[codec] object EncoderDecoder {
     ): A = {
       var res = init
       for (i <- 0 until inputs.length) {
-        val codec = codecs(i).erase
+        val codec = codecs(i)
         val input = inputs(i)
         res = encoding(codec, input, res)
       }
       res
     }
 
-    private def simpleEncode[A](codecs: Chunk[SimpleCodec[A]], inputs: Array[Any]): Option[A] =
+    private def simpleEncode[A](codecs: Chunk[SimpleCodec[A, Any]], inputs: Array[Any]): Option[A] =
       codecs.headOption.map { codec =>
         codec match {
-          case _: SimpleCodec.Unspecified[_] => Some(inputs(0).asInstanceOf[A])
-          case SimpleCodec.Specified(elem)   => Some(elem)
+          case _: SimpleCodec.Unspecified[_] => inputs(0).asInstanceOf[A]
+          case SimpleCodec.Specified(elem)   => elem
         }
       }
 
     private def encodePath(inputs: Array[Any]): Path =
-      genericEncode(
+      genericEncode[Path, PathCodec[Any]](
         flattened.path,
         inputs,
         Path.empty,
@@ -355,7 +356,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def encodeQuery(inputs: Array[Any]): QueryParams =
-      genericEncode(
+      genericEncode[QueryParams, QueryCodec[Any]](
         flattened.query,
         inputs,
         QueryParams.empty,
@@ -374,7 +375,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def encodeHeaders(inputs: Array[Any]): Headers =
-      genericEncode(
+      genericEncode[Headers, HeaderCodec[Any]](
         flattened.header,
         inputs,
         Headers.empty,
