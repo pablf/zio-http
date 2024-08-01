@@ -52,7 +52,7 @@ private[http] sealed trait BodyCodec[A] { self =>
   /**
    * Encodes the `A` to a FormField in the given codec.
    */
-  def encodeToField(value: A, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): FormField
+  def encodeToField(value: A, name: String)(implicit trace: Trace): FormField
 
   /**
    * Encodes the `A` to a body in the given codec.
@@ -88,7 +88,7 @@ private[http] object BodyCodec {
 
     def decodeFromBody(body: Body)(implicit trace: Trace): IO[Nothing, Unit] = ZIO.unit
 
-    def encodeToField(value: Unit, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): FormField =
+    def encodeToField(value: Unit, name: String)(implicit trace: Trace): FormField =
       throw HttpCodecError.CustomError("UnsupportedEncodingType", s"Unit can't be encoded to a FormField")
 
     def encodeToBody(value: Unit, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): Body = Body.empty
@@ -129,8 +129,8 @@ private[http] object BodyCodec {
       }
     }
 
-    def encodeToField(value: A, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): FormField = {
-      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+    def encodeToField(value: A, name: String)(implicit trace: Trace): FormField = {
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(Chunk.empty)
       if (mediaType.binary) {
         FormField.binaryField(
           name,
@@ -179,10 +179,10 @@ private[http] object BodyCodec {
         }
       }
 
-    def encodeToField(value: ZStream[Any, Nothing, E], mediaTypes: Chunk[MediaTypeWithQFactor])(implicit
+    def encodeToField(value: ZStream[Any, Nothing, E], name: String)(implicit
       trace: Trace,
     ): FormField = {
-      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(Chunk.empty)
       FormField.streamingBinaryField(
         name,
         value >>> codec0.streamEncoder,

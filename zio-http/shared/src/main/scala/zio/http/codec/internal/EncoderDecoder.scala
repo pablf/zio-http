@@ -186,12 +186,12 @@ private[codec] object EncoderDecoder {
       f(URL(path, queryParams = query), status, method, headers0, body)
     }
 
-    private def genericDecode[E, A, Codec](
+    private def genericDecode[A, Codec](
       a: A,
       codecs: Chunk[Codec],
       inputs: Array[Any],
       decode: (Codec, A) => A,
-    ): Option[Unit] = {
+    ): Unit = {
       for (i <- 0 until inputs.length) {
         val codec = codecs(i)
         inputs(i) = decode(codec, a)
@@ -199,7 +199,7 @@ private[codec] object EncoderDecoder {
     }
 
     private def decodePaths(path: Path, inputs: Array[Any]): Unit =
-      genericDecode(
+      genericDecode[Path, PathCodec](
         path,
         flattened.path,
         inputs,
@@ -212,7 +212,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeQuery(queryParams: QueryParams, inputs: Array[Any]): Unit =
-      genericDecode(
+      genericDecode[Query, QueryCodec](
         queryParams,
         flattened.query,
         inputs,
@@ -223,13 +223,13 @@ private[codec] object EncoderDecoder {
             throw HttpCodecError.MissingQueryParam(codec.name)
           else {
             val parsedParams = params.collect(codec.textCodec)
-            inputs(i) = parsedParams
+            parsedParams
           }
         },
       )
 
     private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit =
-      genericDecode(
+      genericDecode[Headers, HeaderCodec](
         method,
         flattened.method,
         inputs,
@@ -246,7 +246,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeStatus(status: Status, inputs: Array[Any]): Unit =
-      genericDecode(
+      genericDecode[Status, SimpleCodec[Status, Unit]](
         status,
         flattened.status,
         inputs,
@@ -259,7 +259,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeMethod(method: Method, inputs: Array[Any]): Unit =
-      genericDecode(
+      genericDecode[Method, SimpleCodec[Method, Unit]](
         method,
         flattened.method,
         inputs,
@@ -401,7 +401,8 @@ private[codec] object EncoderDecoder {
     private def encodeMultipartFormData(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Form = {
       val formFields = flattened.content.zipWithIndex.map { case (bodyCodec, idx) =>
         val input = inputs(idx)
-        bodyCodec.encodeToField(input)
+        val name  = nameByIndex(idx)
+        bodyCodec.encodeToField(input, name)
       }
 
       Form(formFields: _*)
