@@ -55,7 +55,8 @@ object ResponseSpec extends ZIOHttpSpec {
       },
       test("don't use Warning header") {
         assertZIO(ZIO.succeed(Response.fromThrowable(new Throwable).headers.contains("Warning")))(isFalse) &&
-        assertZIO(Response.fromThrowable(new Throwable).body.asString)(not(isEmptyString))
+        assertZIO(Response.fromThrowable(new Throwable("msg")).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.fromThrowable(new Throwable).body.asString)(isEmptyString)
       },
     ),
     suite("redirect")(

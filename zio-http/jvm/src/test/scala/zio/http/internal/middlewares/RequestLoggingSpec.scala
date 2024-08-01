@@ -62,7 +62,7 @@ object RequestLoggingSpec extends ZIOHttpSpec with HttpAppTestExtensions {
             "method"        -> "GET",
             "duration_ms"   -> "0",
             "url"           -> "/error",
-            "response_size" -> "3",
+            "response_size" -> "0",
             "status_code"   -> "500",
             "request_size"  -> "0",
           ),
@@ -95,12 +95,13 @@ object RequestLoggingSpec extends ZIOHttpSpec with HttpAppTestExtensions {
           first = entries.head
         } yield assertTrue(
           first.message() == "Http request served",
-          first.annotations.filterNot(_._1 == "response_size") == Map(
-            "method"       -> "GET",
-            "duration_ms"  -> "0",
-            "url"          -> "/defect",
-            "status_code"  -> "500",
-            "request_size" -> "0",
+          first.annotations == Map(
+            "method"        -> "GET",
+            "duration_ms"   -> "0",
+            "url"           -> "/defect",
+            "response_size" -> "0",
+            "status_code"   -> "500",
+            "request_size"  -> "0",
           ),
         )
       },
