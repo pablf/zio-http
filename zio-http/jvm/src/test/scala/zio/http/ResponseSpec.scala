@@ -41,6 +41,11 @@ object ResponseSpec extends ZIOHttpSpec {
 
         assertTrue(extractStatus(Response.fromCause(cause)) == Status.InternalServerError)
       },
+      test("use Warning header") {
+        assertZIO(Response.fromCause(Cause.fail("error")).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.fromCause(Cause.fail("error"), false).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.fromCause(Cause.fail("error"), true).body.asString)(isEmptyString)
+      },
     ),
     suite("fromThrowable")(
       test("from Throwable") {
@@ -48,6 +53,11 @@ object ResponseSpec extends ZIOHttpSpec {
       },
       test("from IllegalArgumentException") {
         assertTrue(extractStatus(Response.fromThrowable(new IllegalArgumentException)) == Status.BadRequest)
+      },
+      test("use Warning header") {
+        assertZIO(Response.fromThrowable(new Throwable).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.fromThrowable(new Throwable, false).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.fromThrowable(new Throwable, true).body.asString)(isEmptyString)
       },
     ),
     suite("redirect")(
@@ -99,6 +109,16 @@ object ResponseSpec extends ZIOHttpSpec {
         val ok   = Response.ok
         val http = ok.toHandler
         assertZIO(http.runZIO(()))(equalTo(ok))
+      },
+    ),
+    suite("error")(
+      test("use Warning Header") {
+        assertZIO(Response.error(Status.BadRequest).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.error(Status.BadRequest).body.asString, false)(not(isEmptyString)) &&
+        assertZIO(Response.error(Status.BadRequest).body.asString, true)(isEmptyString) &&
+        assertZIO(Response.error(Status.BadRequest).body.asString, "msg")(not(isEmptyString)) &&
+        assertZIO(Response.error(Status.BadRequest).body.asString, "msg", false)(not(isEmptyString)) &&
+        assertZIO(Response.error(Status.BadRequest).body.asString, "msg", true)(isEmptyString)
       },
     ),
   )
