@@ -17,11 +17,11 @@ object ErrorInBodySpec extends HttpRunnableSpec {
       test("error not in body") {
         val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
         assertZIO(res)(isEmptyString)
-      }.provide(ZLayer.succeed(Server.Config.default)),
+      }.provideSome(ZLayer.succeed(Server.Config.default)),
       test("error in body") {
         val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
         assertZIO(res)(not(isEmptyString))
-      }.provide(ZLayer.succeed(Server.Config.default.errorInBody(true))),
+      }.provideSome(ZLayer.succeed(Server.Config.default.errorInBody(true))),
     )
       .provide(
         DynamicServer.live,
