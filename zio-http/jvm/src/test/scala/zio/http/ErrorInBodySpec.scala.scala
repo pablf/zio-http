@@ -12,7 +12,7 @@ object ErrorInBodySpec extends HttpRunnableSpec {
 
   private val app = serve
 
-  private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw Throwable("ERROR")))
+  private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("ERROR")))
 
   def notInBodySpec =
     suite("ErrorNotInBodySpec") {
