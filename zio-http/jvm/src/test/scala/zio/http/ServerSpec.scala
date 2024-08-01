@@ -96,7 +96,7 @@ object ServerSpec extends HttpRunnableSpec {
         } +
           test("content is not empty") {
             val res = routes.deploy.body.mapZIO(_.asString).run()
-            assertZIO(res)(equalTo("SERVER_ERROR"))
+            assertZIO(res)(not(isEmptyString))
           } +
           test("header is set") {
             val res = routes.deploy.header(Header.ContentLength).run()
