@@ -17,19 +17,24 @@ object ErrorInBodySpec extends HttpRunnableSpec {
       test("error not in body") {
         val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
         assertZIO(res)(isEmptyString)
-      }.provideSome[DynamicServer & Server & Client](ZLayer.succeed(Server.Config.default), Scope.default),
-      test("error in body") {
-        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
-        assertZIO(res)(not(isEmptyString))
-      }.provideSome[DynamicServer & Server & Client](
-        ZLayer.succeed(Server.Config.default.errorInBody(true)),
+      }.provideSome(
+        ZLayer.succeed(Server.Config.default),
         Scope.default,
-      ),
-    )
-      .provide(
         DynamicServer.live,
         Server.customized,
         ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
         Client.default,
-      ) @@ sequential @@ withLiveClock
+      ),
+      test("error in body") {
+        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "error")
+        assertZIO(res)(not(isEmptyString))
+      }.provideSome(
+        ZLayer.succeed(Server.Config.default),
+        Scope.default,
+        DynamicServer.live,
+        Server.customized,
+        ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
+        Client.default,
+      ),
+    ) @@ sequential @@ withLiveClock
 }
