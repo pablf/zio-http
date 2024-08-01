@@ -39,6 +39,11 @@ private[http] sealed trait BodyCodec[A] { self =>
    */
   type Element
 
+  def decode(body: Body)(implicit trace: Trace): IO[Throwable, A]
+
+  def decodeForm(form: Form)(implicit trace: Trace): IO[Throwable, A] =
+    
+
   /**
    * Attempts to decode the `A` from a body using the given codec.
    */
