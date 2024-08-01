@@ -723,18 +723,6 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
     error(Status.BadRequest, message)
 
   /**
-   * Creates a handler which always responds with a 400 status code.
-   */
-  def badRequest(useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.BadRequest, useWarningHeader)
-
-  /**
-   * Creates a handler which always responds with a 400 status code.
-   */
-  def badRequest(message: => String, useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.BadRequest, message, useWarningHeader)
-
-  /**
    * Returns a handler that dies with the specified `Throwable`. This method can
    * be used for terminating an handler because a defect has been detected in
    * the code. Terminating a handler leads to aborting handling of an HTTP
@@ -762,22 +750,6 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
    */
   def error(status: => Status.Error, message: => String): Handler[Any, Nothing, Any, Response] =
     fromResponse(Response.error(status, message))
-
-  /**
-   * Creates a handler with an error and the specified error message.
-   */
-  def error(status: => Status.Error, useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    fromResponse(Response.error(status, useWarningHeader))
-
-  /**
-   * Creates a handler with an error and the specified error message.
-   */
-  def error(
-    status: => Status.Error,
-    message: => String,
-    useWarningHeader: Boolean,
-  ): Handler[Any, Nothing, Any, Response] =
-    fromResponse(Response.error(status, message, useWarningHeader))
 
   /**
    * Creates a Handler that always fails
@@ -813,18 +785,6 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
    */
   def forbidden(message: => String): Handler[Any, Nothing, Any, Response] =
     error(Status.Forbidden, message)
-
-  /**
-   * Creates a handler that responds with 403 - Forbidden status code
-   */
-  def forbidden(useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.Forbidden, useWarningHeader)
-
-  /**
-   * Creates a handler that responds with 403 - Forbidden status code
-   */
-  def forbidden(message: => String, useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.Forbidden, message, useWarningHeader)
 
   def from[H](handler: => H)(implicit h: ToHandler[H]): Handler[h.Env, h.Err, h.In, h.Out] =
     h.toHandler(handler)
@@ -995,12 +955,6 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
   def internalServerError(message: => String): Handler[Any, Nothing, Any, Response] =
     error(Status.InternalServerError, message)
 
-  def internalServerError(useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.InternalServerError, useWarningHeader)
-
-  def internalServerError(message: => String, useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.InternalServerError, message, useWarningHeader)
-
   /**
    * Creates a handler which always responds with a 405 status code.
    */
@@ -1014,18 +968,6 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
     error(Status.MethodNotAllowed, message)
 
   /**
-   * Creates a handler which always responds with a 405 status code.
-   */
-  def methodNotAllowed(useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.MethodNotAllowed, useWarningHeader)
-
-  /**
-   * Creates a handler which always responds with a 405 status code.
-   */
-  def methodNotAllowed(message: => String, useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.MethodNotAllowed, message, useWarningHeader)
-
-  /**
    * Creates a handler that fails with a NotFound exception.
    */
   def notFound: Handler[Any, Nothing, Request, Response] =
@@ -1036,12 +978,6 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
 
   def notFound(message: => String): Handler[Any, Nothing, Any, Response] =
     error(Status.NotFound, message)
-
-  def notFound(useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.NotFound, useWarningHeader)
-
-  def notFound(message: => String, useWarningHeader: Boolean): Handler[Any, Nothing, Any, Response] =
-    error(Status.NotFound, message, useWarningHeader)
 
   /**
    * Creates a handler which always responds with a 200 status code.
