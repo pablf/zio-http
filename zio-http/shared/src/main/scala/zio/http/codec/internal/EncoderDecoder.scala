@@ -346,7 +346,7 @@ private[codec] object EncoderDecoder {
         inputs,
         Path.empty,
         (codec, a, acc) => {
-          val encoded = codec.encode(a) match {
+          val encoded = codec.erase.encode(a) match {
             case Left(error)  =>
               throw HttpCodecError.MalformedPath(acc, codec, error)
             case Right(value) => value
@@ -367,7 +367,7 @@ private[codec] object EncoderDecoder {
             queryParams.addQueryParams(codec.name, Chunk.empty[String])
           else
             inputCoerced.foreach { in =>
-              val value = codec.textCodec.encode(in)
+              val value = codec.erase.textCodec.encode(in)
               queryParams.addQueryParam(codec.name, value)
             }
           queryParams
