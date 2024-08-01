@@ -199,7 +199,7 @@ private[codec] object EncoderDecoder {
     }
 
     private def decodePaths(path: Path, inputs: Array[Any]): Unit =
-      genericDecode[Path, PathCodec[Any]](
+      genericDecode[Path, PathCodec[_]](
         path,
         flattened.path,
         inputs,
@@ -212,7 +212,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeQuery(queryParams: QueryParams, inputs: Array[Any]): Unit =
-      genericDecode[QueryParams, QueryCodec[Any]](
+      genericDecode[QueryParams, HttpCodec.Query[_]](
         queryParams,
         flattened.query,
         inputs,
@@ -230,8 +230,8 @@ private[codec] object EncoderDecoder {
 
     private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit =
       genericDecode[Headers, HeaderCodec[Any]](
-        method,
-        flattened.method,
+        headers,
+        flattened.header,
         inputs,
         (codec, headers) =>
           headers.get(codec.name) match {
@@ -246,7 +246,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeStatus(status: Status, inputs: Array[Any]): Unit =
-      genericDecode[Status, SimpleCodec[Status, Any]](
+      genericDecode[Status, SimpleCodec[Status, _]](
         status,
         flattened.status,
         inputs,
@@ -259,7 +259,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeMethod(method: Method, inputs: Array[Any]): Unit =
-      genericDecode[Method, SimpleCodec[Method, Any]](
+      genericDecode[Method, SimpleCodec[Method, _]](
         method,
         flattened.method,
         inputs,
@@ -332,7 +332,7 @@ private[codec] object EncoderDecoder {
       res
     }
 
-    private def simpleEncode[A](codecs: Chunk[SimpleCodec[A, Any]], inputs: Array[Any]): Option[A] =
+    private def simpleEncode[A](codecs: Chunk[SimpleCodec[A, _]], inputs: Array[Any]): Option[A] =
       codecs.headOption.map { codec =>
         codec match {
           case _: SimpleCodec.Unspecified[_] => inputs(0).asInstanceOf[A]
@@ -341,7 +341,7 @@ private[codec] object EncoderDecoder {
       }
 
     private def encodePath(inputs: Array[Any]): Path =
-      genericEncode[Path, PathCodec[Any]](
+      genericEncode[Path, PathCodec[_]](
         flattened.path,
         inputs,
         Path.empty,
@@ -356,7 +356,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def encodeQuery(inputs: Array[Any]): QueryParams =
-      genericEncode[QueryParams, QueryCodec[Any]](
+      genericEncode[QueryParams, HttpCodec.Query[_]](
         flattened.query,
         inputs,
         QueryParams.empty,
@@ -375,7 +375,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def encodeHeaders(inputs: Array[Any]): Headers =
-      genericEncode[Headers, HeaderCodec[Any]](
+      genericEncode[Headers, HeaderCodec[_]](
         flattened.header,
         inputs,
         Headers.empty,
