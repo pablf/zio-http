@@ -346,9 +346,9 @@ private[codec] object EncoderDecoder {
         inputs,
         Path.empty,
         (codec, a, acc) => {
-          val encoded = pathCodec.encode(a) match {
+          val encoded = codec.encode(a) match {
             case Left(error)  =>
-              throw HttpCodecError.MalformedPath(a, acc, error)
+              throw HttpCodecError.MalformedPath(acc, codec, error)
             case Right(value) => value
           }
           acc ++ encoded
@@ -367,8 +367,8 @@ private[codec] object EncoderDecoder {
             queryParams.addQueryParams(codec.name, Chunk.empty[String])
           else
             inputCoerced.foreach { in =>
-              val value = query.textCodec.encode(in)
-              queryParams = queryParams.addQueryParam(codec.name, value)
+              val value = codec.textCodec.encode(in)
+              queryParams.addQueryParam(codec.name, value)
             }
           queryParams
         },
@@ -379,7 +379,7 @@ private[codec] object EncoderDecoder {
         flattened.header,
         inputs,
         Headers.empty,
-        (codec, input, headers) => headers ++ Headers(codec.name, codec.textCodec.encode(input)),
+        (codec, input, headers) => headers ++ Headers(codec.name, codec.erase.textCodec.encode(input)),
       )
 
     private def encodeStatus(inputs: Array[Any]): Option[Status] =
@@ -403,31 +403,25 @@ private[codec] object EncoderDecoder {
       val formFields = flattened.content.zipWithIndex.map { case (bodyCodec, idx) =>
         val input = inputs(idx)
         val name  = nameByIndex(idx)
-        bodyCodec.encodeToField(input, name)
+        bodyCodec.erase.encodeToField(input, name)
       }
 
       Form(formFields: _*)
     }
 
-    private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers = {
-      if (isByteStream) {
-        val mediaType = flattened.content(0).mediaType(outputTypes).getOrElse(MediaType.application.`octet-stream`)
-        Headers(Header.ContentType(mediaType))
-      } else {
-        if (inputs.length > 1) {
+    private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers =
+      inputs.length match {
+        case 0 =>
+          Headers.empty
+        case 1 =>
+          val mediaType = flattened
+            .content(0)
+            .mediaType(outputTypes)
+            .getOrElse(throw HttpCodecError.CustomError("InvalidHttpContentCodec", "No codecs found."))
+          Headers(Header.ContentType(mediaType))
+        case _ =>
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
-        } else {
-          if (flattened.content.length < 1) Headers.empty
-          else {
-            val mediaType = flattened
-              .content(0)
-              .mediaType(outputTypes)
-              .getOrElse(throw HttpCodecError.CustomError("InvalidHttpContentCodec", "No codecs found."))
-            Headers(Header.ContentType(mediaType))
-          }
-        }
       }
-    }
 
   }
 }
