@@ -190,7 +190,7 @@ private[codec] object EncoderDecoder {
       a: A,
       codecs: Chunk[Codec],
       inputs: Array[Any],
-      decode: (Codec, A) => A,
+      decode: (Codec, A) => Any,
     ): Unit = {
       for (i <- 0 until inputs.length) {
         val codec = codecs(i)
@@ -229,7 +229,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit =
-      genericDecode[Headers, HeaderCodec[Any]](
+      genericDecode[Headers, HttpCodec.Header[_]](
         headers,
         flattened.header,
         inputs,
@@ -321,7 +321,7 @@ private[codec] object EncoderDecoder {
       codecs: Chunk[Codec],
       inputs: Array[Any],
       init: A,
-      encoding: (Codec, A, A) => A,
+      encoding: (Codec, Any, A) => A,
     ): A = {
       var res = init
       for (i <- 0 until inputs.length) {
@@ -375,7 +375,7 @@ private[codec] object EncoderDecoder {
       )
 
     private def encodeHeaders(inputs: Array[Any]): Headers =
-      genericEncode[Headers, HeaderCodec[_]](
+      genericEncode[Headers, HttpCodec.Header[_]](
         flattened.header,
         inputs,
         Headers.empty,
