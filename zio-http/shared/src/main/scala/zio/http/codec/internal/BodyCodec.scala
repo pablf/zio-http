@@ -24,7 +24,7 @@ import zio.schema._
 
 import zio.http.Header.Accept.MediaTypeWithQFactor
 import zio.http.codec.{BinaryCodecWithSchema, HttpCodecError, HttpContentCodec}
-import zio.http.{Body, MediaType}
+import zio.http.{Body, FormField, MediaType}
 
 /**
  * A BodyCodec encapsulates the logic necessary to both encode and decode bodies
@@ -106,13 +106,15 @@ private[http] object BodyCodec {
       Some(codec.chooseFirstOrDefault(accepted)._1)
 
     def decodeFromField(field: FormField)(implicit trace: Trace): IO[Throwable, A] = {
-      val codec0 = codec.lookup(field.contentType)
+      val codec0 = codec
+        .lookup(field.contentType)
+        .toRight(HttpCodecError.CustomError("UnsupportedMediaType", s"MediaType: ${body.mediaType}"))
       codec0 match {
         case Left(error)                                                       => ZIO.fail(error)
         case Right(BinaryCodecWithSchema(_, schema)) if schema == Schema[Unit] =>
           ZIO.unit.asInstanceOf[IO[Throwable, A]]
         case Right(BinaryCodecWithSchema(codec, schema))                       =>
-          body.asChunk.flatMap { chunk => ZIO.fromEither(codec.decode(chunk)) }.flatMap(validateZIO(schema))
+          field.asChunk.flatMap { chunk => ZIO.fromEither(codec.decode(chunk)) }.flatMap(validateZIO(schema))
       }
     }
 
@@ -160,9 +162,12 @@ private[http] object BodyCodec {
 
     def decodeFromField(field: FormField)(implicit trace: Trace): IO[Throwable, ZStream[Any, Nothing, E]] =
       ZIO.fromEither {
-        codec.lookup(field.contentType).map { case BinaryCodecWithSchema(codec, schema) =>
-          (body.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
-        }
+        codec
+          .lookup(field.contentType)
+          .toRight(HttpCodecError.CustomError("UnsupportedMediaType", s"MediaType: ${body.mediaType}"))
+          .map { case BinaryCodecWithSchema(codec, schema) =>
+            (field.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
+          }
       }
 
     def decodeFromBody(body: Body)(implicit
