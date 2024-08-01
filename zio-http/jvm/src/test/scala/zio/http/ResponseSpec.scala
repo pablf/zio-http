@@ -118,7 +118,7 @@ object ResponseSpec extends ZIOHttpSpec {
         assertZIO(Response.error(Status.BadRequest, true).body.asString)(isEmptyString) &&
         assertZIO(Response.error(Status.BadRequest, "msg").body.asString)(not(isEmptyString)) &&
         assertZIO(Response.error(Status.BadRequest, "msg", false).body.asString)(not(isEmptyString)) &&
-        assertZIO(Response.error(Status.BadRequest, "msg", true).body.asStringe)(isEmptyString)
+        assertZIO(Response.error(Status.BadRequest, "msg", true).body.asString)(isEmptyString)
       },
     ),
   )
