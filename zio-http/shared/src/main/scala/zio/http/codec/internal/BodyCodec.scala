@@ -39,15 +39,20 @@ private[http] sealed trait BodyCodec[A] { self =>
    */
   type Element
 
-  def decode(body: Body)(implicit trace: Trace): IO[Throwable, A]
-
-  def decodeForm(form: Form)(implicit trace: Trace): IO[Throwable, A] =
-    
+  /**
+   * Attempts to decode the `A` from a FormField using the given codec.
+   */
+  def decodeFromField(field: FormField)(implicit trace: Trace): IO[Throwable, A]
 
   /**
    * Attempts to decode the `A` from a body using the given codec.
    */
   def decodeFromBody(body: Body)(implicit trace: Trace): IO[Throwable, A]
+
+  /**
+   * Encodes the `A` to a FormField in the given codec.
+   */
+  def encodeToField(value: A, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): FormField
 
   /**
    * Encodes the `A` to a body in the given codec.
@@ -79,7 +84,12 @@ private[http] object BodyCodec {
   case object Empty extends BodyCodec[Unit] {
     type Element = Unit
 
+    def decodeFromField(field: FormField)(implicit trace: Trace): IO[Throwable, Unit] = ZIO.unit
+
     def decodeFromBody(body: Body)(implicit trace: Trace): IO[Nothing, Unit] = ZIO.unit
+
+    def encodeToField(value: Unit, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): FormField =
+      FormField.empty
 
     def encodeToBody(value: Unit, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): Body = Body.empty
 
@@ -95,6 +105,17 @@ private[http] object BodyCodec {
     def mediaType(accepted: Chunk[MediaTypeWithQFactor]): Option[MediaType] =
       Some(codec.chooseFirstOrDefault(accepted)._1)
 
+    def decodeFromField(field: FormField)(implicit trace: Trace): IO[Throwable, A] = {
+      val codec0 = codec.lookup(field.contentType)
+      codec0 match {
+        case Left(error)                                                       => ZIO.fail(error)
+        case Right(BinaryCodecWithSchema(_, schema)) if schema == Schema[Unit] =>
+          ZIO.unit.asInstanceOf[IO[Throwable, A]]
+        case Right(BinaryCodecWithSchema(codec, schema))                       =>
+          body.asChunk.flatMap { chunk => ZIO.fromEither(codec.decode(chunk)) }.flatMap(validateZIO(schema))
+      }
+    }
+
     def decodeFromBody(body: Body)(implicit trace: Trace): IO[Throwable, A] = {
       val codec0 = codecForBody(codec, body)
       codec0 match {
@@ -103,6 +124,23 @@ private[http] object BodyCodec {
           ZIO.unit.asInstanceOf[IO[Throwable, A]]
         case Right(BinaryCodecWithSchema(codec, schema))                       =>
           body.asChunk.flatMap { chunk => ZIO.fromEither(codec.decode(chunk)) }.flatMap(validateZIO(schema))
+      }
+    }
+
+    def encodeToField(value: A, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): FormField = {
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      if (mediaType.binary) {
+        FormField.binaryField(
+          name,
+          codec0.encode(value),
+          mediaType,
+        )
+      } else {
+        FormField.textField(
+          name,
+          codec0.encode(value).asString,
+          mediaType,
+        )
       }
     }
 
@@ -120,14 +158,31 @@ private[http] object BodyCodec {
     def mediaType(accepted: Chunk[MediaTypeWithQFactor]): Option[MediaType] =
       Some(codec.chooseFirstOrDefault(accepted)._1)
 
+    def decodeFromField(field: FormField)(implicit trace: Trace): IO[Throwable, ZStream[Any, Nothing, E]] =
+      ZIO.fromEither {
+        codec.lookup(field.contentType).map { case BinaryCodecWithSchema(codec, schema) =>
+          (body.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
+        }
+      }
+
     def decodeFromBody(body: Body)(implicit
       trace: Trace,
-    ): IO[Throwable, ZStream[Any, Nothing, E]] = {
+    ): IO[Throwable, ZStream[Any, Nothing, E]] =
       ZIO.fromEither {
         codecForBody(codec, body).map { case BinaryCodecWithSchema(codec, schema) =>
           (body.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
         }
       }
+
+    def encodeToField(value: ZStream[Any, Nothing, E], mediaTypes: Chunk[MediaTypeWithQFactor])(implicit
+      trace: Trace,
+    ): FormField = {
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      FormField.streamingBinaryField(
+        name,
+        value >>> codec0.streamEncoder,
+        mediaType,
+      )
     }
 
     def encodeToBody(value: ZStream[Any, Nothing, E], mediaTypes: Chunk[MediaTypeWithQFactor])(implicit
