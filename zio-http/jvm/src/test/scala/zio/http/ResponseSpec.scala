@@ -114,11 +114,11 @@ object ResponseSpec extends ZIOHttpSpec {
     suite("error")(
       test("use Warning Header") {
         assertZIO(Response.error(Status.BadRequest).body.asString)(not(isEmptyString)) &&
-        assertZIO(Response.error(Status.BadRequest).body.asString, false)(not(isEmptyString)) &&
-        assertZIO(Response.error(Status.BadRequest).body.asString, true)(isEmptyString) &&
-        assertZIO(Response.error(Status.BadRequest).body.asString, "msg")(not(isEmptyString)) &&
-        assertZIO(Response.error(Status.BadRequest).body.asString, "msg", false)(not(isEmptyString)) &&
-        assertZIO(Response.error(Status.BadRequest).body.asString, "msg", true)(isEmptyString)
+        assertZIO(Response.error(Status.BadRequest, false).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.error(Status.BadRequest, true).body.asString)(isEmptyString) &&
+        assertZIO(Response.error(Status.BadRequest, "msg").body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.error(Status.BadRequest, "msg", false).body.asString)(not(isEmptyString)) &&
+        assertZIO(Response.error(Status.BadRequest, "msg", true).body.asStringe)(isEmptyString)
       },
     ),
   )
