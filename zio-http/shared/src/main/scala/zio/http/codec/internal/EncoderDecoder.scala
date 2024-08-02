@@ -297,51 +297,50 @@ private[codec] object EncoderDecoder {
       }
     }
 
-    private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit =
-      genericDecode[Headers, HttpCodec.Header[_]](
-        headers,
-        flattened.header,
-        inputs,
-        (codec, headers) =>
-          headers.get(codec.name) match {
-            case Some(value) =>
-              codec.erase.textCodec
-                .decode(value)
-                .getOrElse(throw HttpCodecError.MalformedHeader(codec.name, codec.textCodec))
+    private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit = {
+      var i = 0
+      while (i < flattened.header.length) {
+        val header = flattened.header(i).erase
 
-            case None =>
-              throw HttpCodecError.MissingHeader(codec.name)
+        headers.get(header.name) match {
+          case Some(value) =>
+            inputs(i) = header.textCodec
+              .decode(value)
+              .getOrElse(throw HttpCodecError.MalformedHeader(header.name, header.textCodec))
+
+          case None =>
+            throw HttpCodecError.MissingHeader(header.name)
+        }
+
+        i = i + 1
+      }
+    }
+
+    private def decodeStatus(status: Status, inputs: Array[Any]): Unit =
+      genericDecode[Status, SimpleCodec[Status, _]](
+        status,
+        flattened.status,
+        inputs,
+        (codec, status) =>
+          codec match {
+            case SimpleCodec.Specified(expected) if expected != status =>
+              throw HttpCodecError.MalformedStatus(expected, status)
+            case _                                                     => status
           },
       )
 
-    private def decodeStatus(status: Status, inputs: Array[Any]): Unit = {
-      var i = 0
-      while (i < inputs.length) {
-        inputs(i) = flattened.status(i) match {
-          case _: SimpleCodec.Unspecified[_]   => status
-          case SimpleCodec.Specified(expected) =>
-            if (status != expected)
-              throw HttpCodecError.MalformedStatus(expected, status)
-            else ()
-        }
-
-        i = i + 1
-      }
-    }
-
-    private def decodeMethod(method: Method, inputs: Array[Any]): Unit = {
-      var i = 0
-      while (i < inputs.length) {
-        inputs(i) = flattened.method(i) match {
-          case _: SimpleCodec.Unspecified[_]   => method
-          case SimpleCodec.Specified(expected) =>
-            if (method != expected) throw HttpCodecError.MalformedMethod(expected, method)
-            else ()
-        }
-
-        i = i + 1
-      }
-    }
+    private def decodeMethod(method: Method, inputs: Array[Any]): Unit =
+      genericDecode[Method, SimpleCodec[Method, _]](
+        method,
+        flattened.method,
+        inputs,
+        (codec, method) =>
+          codec match {
+            case SimpleCodec.Specified(expected) if expected != method =>
+              throw HttpCodecError.MalformedMethod(expected, method)
+            case _                                                     => method
+          },
+      )
 
     private def decodeBody(body: Body, inputs: Array[Any])(implicit
       trace: Trace,
