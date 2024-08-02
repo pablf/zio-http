@@ -204,7 +204,7 @@ private[codec] object EncoderDecoder {
         flattened.path,
         inputs,
         (codec, path) => {
-          codec.decode(path) match {
+          codec.erase.decode(path) match {
             case Left(error)  => throw HttpCodecError.MalformedPath(path, codec, error)
             case Right(value) => value
           }
@@ -222,7 +222,7 @@ private[codec] object EncoderDecoder {
           if (params.isEmpty)
             throw HttpCodecError.MissingQueryParam(codec.name)
           else {
-            val parsedParams = params.collect(codec.textCodec)
+            val parsedParams = params.collect(codec.erase.textCodec)
             parsedParams
           }
         },
@@ -236,7 +236,7 @@ private[codec] object EncoderDecoder {
         (codec, headers) =>
           headers.get(codec.name) match {
             case Some(value) =>
-              codec.textCodec
+              codec.erase.textCodec
                 .decode(value)
                 .getOrElse(throw HttpCodecError.MalformedHeader(codec.name, codec.textCodec))
 
