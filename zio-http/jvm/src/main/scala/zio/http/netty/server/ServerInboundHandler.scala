@@ -350,7 +350,7 @@ private[zio] final case class ServerInboundHandler(
     }.unit.orDie
 
   private def withDefaultErrorResponse(cause: Throwable): Response =
-    if (config.errorInBody) Response.internalServerError(cause.getMessage) else Response.internalServerError
+    if (config.errorInBody) Response.internalServerError("uuu") else Response.internalServerError
 }
 
 object ServerInboundHandler {
