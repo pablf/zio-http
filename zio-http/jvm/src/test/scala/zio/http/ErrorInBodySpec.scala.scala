@@ -8,11 +8,9 @@ import zio.test._
 import zio.http.internal.HttpRunnableSpec
 import zio.http.netty.NettyConfig
 
-object ErrorInBodySpec extends HttpRunnableSpec {
+object ErrorInBodySpec extends ZIOHttpSpec {
 
   private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("ERROR")))
-
-  private val app = serve(routes)
 
   def notInBodySpec =
     suite("ErrorNotInBodySpec") {
@@ -25,7 +23,8 @@ object ErrorInBodySpec extends HttpRunnableSpec {
           content <- body.asString
         } yield content)(isEmptyString)
       }
-      ZIO.scoped(app.as(List(tests)))
+      ZIO.scoped(tests)
+      // ZIO.scoped(app.as(List(tests)))
     }.provideSome[Server & Client](Scope.default)
       .provideShared(
         ZLayer.succeed(Server.Config.default),
