@@ -278,19 +278,63 @@ private[codec] object EncoderDecoder {
         },
       )
 
-    private def decodeQuery(queryParams: QueryParams, inputs: Array[Any]): Unit = {
-      var i       = 0
-      val queries = flattened.query
-      while (i < queries.length) {
-        val query = queries(i).erase
+    private def decodeQuery(queryParams: QueryParams, inputs: Array[Any]): Unit =
+      genericDecode[QueryParams, HttpCodec.Query[_]](
+        queryParams,
+        flattened.query,
+        inputs,
+        (codec, queryParams) => {
+          val params = queryParams.queryParamsOrElse(codec.name, Nil)
 
-        val params = queryParams.queryParamsOrElse(query.name, Nil)
+          if (params.isEmpty)
+            throw HttpCodecError.MissingQueryParam(codec.name)
+          else {
+            val parsedParams = params.collect(codec.erase.textCodec)
+            parsedParams
+          }
+        },
+      )
 
-        if (params.isEmpty)
-          throw HttpCodecError.MissingQueryParam(query.name)
-        else {
-          val parsedParams = params.collect(query.textCodec)
-          inputs(i) = parsedParams
+    private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit =
+      genericDecode[Headers, HttpCodec.Header[_]](
+        headers,
+        flattened.header,
+        inputs,
+        (codec, headers) =>
+          headers.get(codec.name) match {
+            case Some(value) =>
+              codec.erase.textCodec
+                .decode(value)
+                .getOrElse(throw HttpCodecError.MalformedHeader(codec.name, codec.textCodec))
+
+            case None =>
+              throw HttpCodecError.MissingHeader(codec.name)
+          },
+      )
+
+    private def decodeStatus(status: Status, inputs: Array[Any]): Unit = {
+      var i = 0
+      while (i < inputs.length) {
+        inputs(i) = flattened.status(i) match {
+          case _: SimpleCodec.Unspecified[_]   => status
+          case SimpleCodec.Specified(expected) =>
+            if (status != expected)
+              throw HttpCodecError.MalformedStatus(expected, status)
+            else ()
+        }
+
+        i = i + 1
+      }
+    }
+
+    private def decodeMethod(method: Method, inputs: Array[Any]): Unit = {
+      var i = 0
+      while (i < inputs.length) {
+        inputs(i) = flattened.method(i) match {
+          case _: SimpleCodec.Unspecified[_]   => method
+          case SimpleCodec.Specified(expected) =>
+            if (method != expected) throw HttpCodecError.MalformedMethod(expected, method)
+            else ()
         }
 
         i = i + 1
@@ -315,32 +359,6 @@ private[codec] object EncoderDecoder {
         i = i + 1
       }
     }
-
-    private def decodeStatus(status: Status, inputs: Array[Any]): Unit =
-      genericDecode[Status, SimpleCodec[Status, _]](
-        status,
-        flattened.status,
-        inputs,
-        (codec, status) =>
-          codec match {
-            case SimpleCodec.Specified(expected) if expected != status =>
-              throw HttpCodecError.MalformedStatus(expected, status)
-            case _                                                     => status
-          },
-      )
-
-    private def decodeMethod(method: Method, inputs: Array[Any]): Unit =
-      genericDecode[Method, SimpleCodec[Method, _]](
-        method,
-        flattened.method,
-        inputs,
-        (codec, method) =>
-          codec match {
-            case SimpleCodec.Specified(expected) if expected != method =>
-              throw HttpCodecError.MalformedMethod(expected, method)
-            case _                                                     => method
-          },
-      )
 
     private def decodeBody(body: Body, inputs: Array[Any])(implicit
       trace: Trace,
@@ -559,7 +577,7 @@ private[codec] object EncoderDecoder {
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
       }
      */
-    private def encodePath(inputs: Array[Any]): Path                   = {
+    private def encodePath(inputs: Array[Any]): Path                      = {
       var path: Path = Path.empty
 
       var i = 0
