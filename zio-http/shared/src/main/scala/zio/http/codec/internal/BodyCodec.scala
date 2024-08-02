@@ -178,9 +178,8 @@ private[http] object BodyCodec {
       trace: Trace,
     ): IO[Throwable, ZStream[Any, Nothing, E]] =
       ZIO.fromEither {
-        codecForBody(codec, body).map {
-          case BinaryCodecWithSchema(codec, schema) if codec.me =>
-            (body.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
+        codecForBody(codec, body).map { case BinaryCodecWithSchema(codec, schema) =>
+          (body.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
         }
       }
 
