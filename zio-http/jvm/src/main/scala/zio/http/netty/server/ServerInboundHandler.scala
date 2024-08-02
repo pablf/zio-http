@@ -82,18 +82,13 @@ private[zio] final case class ServerInboundHandler(
             attemptFastWrite(ctx, Response.fromThrowable(throwable, config.errorInBody))
             releaseRequest()
           } else {
-            val req = makeZioRequest(ctx, jReq)
-            try {
-              val exit = app(req)
-              if (attemptImmediateWrite(ctx, exit)) {
-                releaseRequest()
-              } else {
-                writeResponse(ctx, runtime, exit, req)(releaseRequest)
-              }
-            } catch {
-              case NonFatal(e) => attemptFastWrite(ctx, withDefaultErrorResponse(e))
+            val req  = makeZioRequest(ctx, jReq)
+            val exit = app(req)
+            if (attemptImmediateWrite(ctx, exit)) {
+              releaseRequest()
+            } else {
+              writeResponse(ctx, runtime, exit, req)(releaseRequest)
             }
-
           }
         } finally {
           ReferenceCountUtil.safeRelease(jReq)
@@ -125,8 +120,11 @@ private[zio] final case class ServerInboundHandler(
         cause match {
           case _: ReadTimeoutException =>
             ctx.close(): Unit
-          case _                       =>
-            super.exceptionCaught(ctx, t)
+          case t: Throwable            => {
+            attemptFastWrite(ctx, Response.fromThrowable(throwable, config.errorInBody))
+            ctx.close()
+            // super.exceptionCaught(ctx, t)
+          }
         }
     }
 
