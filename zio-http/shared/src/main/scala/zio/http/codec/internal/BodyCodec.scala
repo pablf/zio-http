@@ -178,8 +178,9 @@ private[http] object BodyCodec {
       trace: Trace,
     ): IO[Throwable, ZStream[Any, Nothing, E]] =
       ZIO.fromEither {
-        codecForBody(codec, body).map { case BinaryCodecWithSchema(codec, schema) =>
-          (body.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
+        codecForBody(codec, body).map {
+          case BinaryCodecWithSchema(codec, schema) if codec.me =>
+            (body.asStream >>> codec.streamDecoder >>> validateStream(schema)).orDie
         }
       }
 
@@ -187,9 +188,11 @@ private[http] object BodyCodec {
       trace: Trace,
     ): FormField = {
       val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      val stream                                        =
+        if (mediaType.binary) value.asInstanceOf[ZStream[Any, Nothing, Byte]] else value >>> codec0.streamEncoder
       FormField.streamingBinaryField(
         name,
-        value >>> codec0.streamEncoder,
+        stream,
         mediaType,
       )
     }
@@ -198,7 +201,8 @@ private[http] object BodyCodec {
       trace: Trace,
     ): Body = {
       val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
-      Body.fromStreamChunked(value >>> codec0.streamEncoder).contentType(mediaType)
+      if (mediaType.binary) Body.fromStreamChunked(value.asInstanceOf[ZStream[Any, Nothing, Byte]])
+      else Body.fromStreamChunked(value >>> codec0.streamEncoder).contentType(mediaType)
     }
 
     type Element = E

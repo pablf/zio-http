@@ -326,21 +326,67 @@ private[codec] object EncoderDecoder {
           },
       )
 
-    private def decodeMethod(method: Method, inputs: Array[Any]): Unit = {
-      var i = 0
-      while (i < inputs.length) {
-        inputs(i) = flattened.method(i) match {
-          case _: SimpleCodec.Unspecified[_]   => method
-          case SimpleCodec.Specified(expected) =>
-            if (method != expected) throw HttpCodecError.MalformedMethod(expected, method)
-            else ()
-        }
+    private def decodeMethod(method: Method, inputs: Array[Any]): Unit =
+      genericDecode[Method, SimpleCodec[Method, _]](
+        method,
+        flattened.method,
+        inputs,
+        (codec, method) =>
+          codec match {
+            case SimpleCodec.Specified(expected) if expected != method =>
+              throw HttpCodecError.MalformedMethod(expected, method)
+            case _: SimpleCodec.Unspecified[_]                         => method
+            case _                                                     => ()
+          },
+      )
 
-        i = i + 1
+    private def decodeBody(body: Body, inputs: Array[Any])(implicit
+      trace: Trace,
+    ): Task[Unit] = {
+      val codecs = flattened.content
+
+      if (inputs.length < 2) {
+        // non multi-part
+        codecs.headOption.map { codec =>
+          codec
+            .decodeFromBody(body)
+            .mapBoth(
+              { err => HttpCodecError.MalformedBody(err.getMessage(), Some(err)) },
+              result => inputs(0) = result,
+            )
+        }.getOrElse(ZIO.unit)
+      } else {
+        // multi-part
+        decodeForm(body.asMultipartFormStream, inputs) *> check(inputs)
       }
     }
 
-    private def decodeBody(body: Body, inputs: Array[Any])(implicit
+    private def decodeForm(form: Task[StreamingForm], inputs: Array[Any]): ZIO[Any, Throwable, Unit] =
+      form.flatMap(_.collectAll).flatMap { collectedForm =>
+        ZIO.foreachDiscard(collectedForm.formData) { field =>
+          val codecs = flattened.content
+          val i      = indexByName
+            .get(field.name)
+            .getOrElse(throw HttpCodecError.MalformedBody(s"Unexpected multipart/form-data field: ${field.name}"))
+          val codec  = codecs(i).erase
+          for {
+            decoded <- codec.decodeFromField(field)
+            _       <- ZIO.attempt { inputs(i) = decoded }
+          } yield ()
+        }
+      }
+
+    private def check(inputs: Array[Any]): ZIO[Any, Throwable, Unit] =
+      ZIO.attempt {
+        for (i <- 0 until inputs.length) {
+          if (inputs(i) == null)
+            throw HttpCodecError.MalformedBody(
+              s"Missing multipart/form-data field (${Try(nameByIndex(i))}",
+            )
+        }
+      }
+
+    /*private def decodeBody(body: Body, inputs: Array[Any])(implicit
       trace: Trace,
     ): Task[Unit] = {
       if (isByteStream) {
@@ -444,7 +490,7 @@ private[codec] object EncoderDecoder {
               ZIO.fail(HttpCodecError.MalformedBody(s"Unexpected multipart/form-data field: ${field.name}"))
           }
         }
-      }
+      }*/
     /*
     private def encodeQuery(inputs: Array[Any]): QueryParams = {
       var queryParams = QueryParams.empty
@@ -557,7 +603,7 @@ private[codec] object EncoderDecoder {
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
       }
      */
-    private def encodePath(inputs: Array[Any]): Path                   = {
+    private def encodePath(inputs: Array[Any]): Path = {
       var path: Path = Path.empty
 
       var i = 0
