@@ -312,20 +312,18 @@ private[codec] object EncoderDecoder {
           },
       )
 
-    private def decodeStatus(status: Status, inputs: Array[Any]): Unit = {
-      var i = 0
-      while (i < inputs.length) {
-        inputs(i) = flattened.status(i) match {
-          case _: SimpleCodec.Unspecified[_]   => status
-          case SimpleCodec.Specified(expected) =>
-            if (status != expected)
+    private def decodeStatus(status: Status, inputs: Array[Any]): Unit =
+      genericDecode[Status, SimpleCodec[Status, _]](
+        status,
+        flattened.status,
+        inputs,
+        (codec, status) =>
+          codec match {
+            case SimpleCodec.Specified(expected) if expected != status =>
               throw HttpCodecError.MalformedStatus(expected, status)
-            else ()
-        }
-
-        i = i + 1
-      }
-    }
+            case _                                                     => status
+          },
+      )
 
     private def decodeMethod(method: Method, inputs: Array[Any]): Unit = {
       var i = 0
