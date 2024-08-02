@@ -341,25 +341,6 @@ private[codec] object EncoderDecoder {
       }
     }
 
-    private def decodeHeaders(headers: Headers, inputs: Array[Any]): Unit = {
-      var i = 0
-      while (i < flattened.header.length) {
-        val header = flattened.header(i).erase
-
-        headers.get(header.name) match {
-          case Some(value) =>
-            inputs(i) = header.textCodec
-              .decode(value)
-              .getOrElse(throw HttpCodecError.MalformedHeader(header.name, header.textCodec))
-
-          case None =>
-            throw HttpCodecError.MissingHeader(header.name)
-        }
-
-        i = i + 1
-      }
-    }
-
     private def decodeBody(body: Body, inputs: Array[Any])(implicit
       trace: Trace,
     ): Task[Unit] = {
@@ -577,7 +558,7 @@ private[codec] object EncoderDecoder {
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
       }
      */
-    private def encodePath(inputs: Array[Any]): Path                      = {
+    private def encodePath(inputs: Array[Any]): Path                   = {
       var path: Path = Path.empty
 
       var i = 0
