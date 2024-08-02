@@ -20,8 +20,8 @@ object ErrorInBodySpec extends HttpRunnableSpec {
         assertZIO(for {
           port   <- DynamicServer.port
           client <- ZIO.service[Client]
-          url = URL.decode("http://localhost:%d/%s".format(port, path)).toOption.get
-          body    <- client(Request(url = Path.root / "test")).map(_.body)
+          url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
+          body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
         } yield content)(isEmptyString)
       }
