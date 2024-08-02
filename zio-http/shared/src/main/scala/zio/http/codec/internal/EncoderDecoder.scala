@@ -386,53 +386,6 @@ private[codec] object EncoderDecoder {
         }
       }
 
-    /*private def encodeQuery(inputs: Array[Any]): QueryParams =
-      genericEncode[QueryParams, HttpCodec.Query[_]](
-        flattened.query,
-        inputs,
-        QueryParams.empty,
-        (codec, input, queryParams) => {
-          val inputCoerced = input.asInstanceOf[Chunk[Any]]
-
-          if (inputCoerced.isEmpty)
-            queryParams.addQueryParams(codec.name, Chunk.empty[String])
-          else
-            inputCoerced.foreach { in =>
-              val value = codec.erase.textCodec.encode(in)
-              queryParams.addQueryParam(codec.name, value)
-            }
-        },
-      )*/
-
-    private def encodeQuery(inputs: Array[Any]): QueryParams =
-      genericEncode[QueryParams, HttpCodec.Query[_]](
-        flattened.query,
-        inputs,
-        QueryParams.empty,
-        (codec, input, queryParams) =>
-          queryParams.addQueryParams(
-            codec.name,
-            input.asInstanceOf[Chunk[Any]].map(in => codec.erase.textCodec.encode(in)),
-          ),
-      )
-
-    /*private def encodeQuery(inputs: Array[Any]): QueryParams = {
-      var queryParams = QueryParams.empty
-
-      var i = 0
-      while (i < inputs.length) {
-        val query = flattened.query(i).erase
-        val input = inputs(i)
-
-        val inputCoerced = input.asInstanceOf[Chunk[Any]]
-        queryParams = queryParams.addQueryParams(query.name, inputCoerced.map(in => query.textCodec.encode(in)))
-
-        i = i + 1
-      }
-
-      queryParams
-    }*/
-
     private def genericEncode[A, Codec](
       codecs: Chunk[Codec],
       inputs: Array[Any],
@@ -471,6 +424,18 @@ private[codec] object EncoderDecoder {
         },
       )
 
+    private def encodeQuery(inputs: Array[Any]): QueryParams =
+      genericEncode[QueryParams, HttpCodec.Query[_]](
+        flattened.query,
+        inputs,
+        QueryParams.empty,
+        (codec, input, queryParams) =>
+          queryParams.addQueryParams(
+            codec.name,
+            input.asInstanceOf[Chunk[Any]].map(in => codec.erase.textCodec.encode(in)),
+          ),
+      )
+
     private def encodeHeaders(inputs: Array[Any]): Headers =
       genericEncode[Headers, HttpCodec.Header[_]](
         flattened.header,
@@ -504,7 +469,7 @@ private[codec] object EncoderDecoder {
       }
 
       Form(formFields: _*)
-    }
+    }*/
 
     private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers =
       inputs.length match {
@@ -518,89 +483,8 @@ private[codec] object EncoderDecoder {
           Headers(Header.ContentType(mediaType))
         case _ =>
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
-      }*/
-    /*
-    private def encodePath(inputs: Array[Any]): Path = {
-      var path: Path = Path.empty
-
-      var i = 0
-      while (i < inputs.length) {
-        val pathCodec = flattened.path(i).erase
-        val input     = inputs(i)
-
-        val encoded = pathCodec.encode(input) match {
-          case Left(error)  =>
-            throw HttpCodecError.MalformedPath(path, pathCodec, error)
-          case Right(value) => value
-        }
-        path = path ++ encoded
-
-        i = i + 1
       }
 
-      path
-    }
-
-    private def encodeQuery(inputs: Array[Any]): QueryParams = {
-      var queryParams = QueryParams.empty
-
-      var i = 0
-      while (i < inputs.length) {
-        val query = flattened.query(i).erase
-        val input = inputs(i)
-
-        val inputCoerced = input.asInstanceOf[Chunk[Any]]
-
-        if (inputCoerced.isEmpty)
-          queryParams.addQueryParams(query.name, Chunk.empty[String])
-        else
-          inputCoerced.foreach { in =>
-            val value = query.textCodec.encode(in)
-            queryParams = queryParams.addQueryParam(query.name, value)
-          }
-
-        i = i + 1
-      }
-
-      queryParams
-    }
-
-    private def encodeStatus(inputs: Array[Any]): Option[Status] = {
-      if (flattened.status.length == 0) {
-        None
-      } else {
-        flattened.status(0) match {
-          case _: SimpleCodec.Unspecified[_] => Some(inputs(0).asInstanceOf[Status])
-          case SimpleCodec.Specified(status) => Some(status)
-        }
-      }
-    }
-
-    private def encodeHeaders(inputs: Array[Any]): Headers = {
-      var headers = Headers.empty
-
-      var i = 0
-      while (i < inputs.length) {
-        val header = flattened.header(i).erase
-        val input  = inputs(i)
-
-        val value = header.textCodec.encode(input)
-
-        headers = headers ++ Headers(header.name, value)
-
-        i = i + 1
-      }
-
-      headers
-    }
-
-    private def encodeMethod(inputs: Array[Any]): Option[zio.http.Method]                      =
-      if (flattened.method.nonEmpty) {
-        flattened.method.head match {
-          case _: SimpleCodec.Unspecified[_] => Some(inputs(0).asInstanceOf[Method])
-          case SimpleCodec.Specified(method) => Some(method)
-        }
-      } else None*/
     private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
       if (isByteStream) {
         Body.fromStreamChunked(inputs(0).asInstanceOf[ZStream[Any, Nothing, Byte]])
@@ -635,7 +519,7 @@ private[codec] object EncoderDecoder {
       )
     }
 
-    private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers = {
+    /*private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers = {
       if (isByteStream) {
         val mediaType = flattened.content(0).mediaType(outputTypes).getOrElse(MediaType.application.`octet-stream`)
         Headers(Header.ContentType(mediaType))
@@ -653,8 +537,8 @@ private[codec] object EncoderDecoder {
           }
         }
       }
-    }
-    private def isByteStreamBody(codec: BodyCodec[_]): Boolean                                           =
+    }*/
+    private def isByteStreamBody(codec: BodyCodec[_]): Boolean =
       codec match {
         case BodyCodec.Multiple(codec, _) if codec.defaultMediaType.binary => true
         case _                                                             => false
