@@ -121,7 +121,7 @@ private[zio] final case class ServerInboundHandler(
           case _: ReadTimeoutException =>
             ctx.close(): Unit
           case t: Throwable            => {
-            attemptFastWrite(ctx, Response.fromThrowable(throwable, config.errorInBody))
+            attemptFastWrite(ctx, Response.fromThrowable(t, config.errorInBody))
             ctx.close()
             // super.exceptionCaught(ctx, t)
           }
