@@ -401,11 +401,19 @@ private[codec] object EncoderDecoder {
               val value = codec.erase.textCodec.encode(in)
               queryParams.addQueryParam(codec.name, value)
             }
-          queryParams
         },
       )*/
 
-    private def encodeQuery(inputs: Array[Any]): QueryParams = {
+    private def encodeQuery(inputs: Array[Any]): QueryParams =
+      genericEncode[QueryParams, HttpCodec.Query[_]](
+        flattened.query,
+        inputs,
+        QueryParams.empty,
+        (codec, input, queryParams) =>
+          queryParams.addQueryParams(query.name, input.asInstanceOf[Chunk[Any]].map(in => query.textCodec.encode(in))),
+      )
+
+    /*private def encodeQuery(inputs: Array[Any]): QueryParams = {
       var queryParams = QueryParams.empty
 
       var i = 0
@@ -420,7 +428,7 @@ private[codec] object EncoderDecoder {
       }
 
       queryParams
-    }
+    }*/
 
     private def genericEncode[A, Codec](
       codecs: Chunk[Codec],
