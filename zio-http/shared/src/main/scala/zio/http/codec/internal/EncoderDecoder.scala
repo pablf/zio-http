@@ -340,7 +340,7 @@ private[codec] object EncoderDecoder {
           },
       )
 
-    private def decodeBody(body: Body, inputs: Array[Any])(implicit
+    /*private def decodeBody(body: Body, inputs: Array[Any])(implicit
       trace: Trace,
     ): Task[Unit] = {
       val codecs = flattened.content
@@ -384,9 +384,9 @@ private[codec] object EncoderDecoder {
               s"Missing multipart/form-data field (${Try(nameByIndex(i))}",
             )
         }
-      }
+      }*/
 
-    /*private def decodeBody(body: Body, inputs: Array[Any])(implicit
+    private def decodeBody(body: Body, inputs: Array[Any])(implicit
       trace: Trace,
     ): Task[Unit] = {
       if (isByteStream) {
@@ -490,8 +490,8 @@ private[codec] object EncoderDecoder {
               ZIO.fail(HttpCodecError.MalformedBody(s"Unexpected multipart/form-data field: ${field.name}"))
           }
         }
-      }*/
-    /*
+      }
+
     private def encodeQuery(inputs: Array[Any]): QueryParams = {
       var queryParams = QueryParams.empty
 
@@ -568,7 +568,7 @@ private[codec] object EncoderDecoder {
     private def encodeMethod(inputs: Array[Any]): Option[Method] =
       simpleEncode(flattened.method, inputs)
 
-    private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
+    /*private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
       inputs.length match {
         case 0 =>
           Body.empty
@@ -601,8 +601,8 @@ private[codec] object EncoderDecoder {
           Headers(Header.ContentType(mediaType))
         case _ =>
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
-      }
-     */
+      }*/
+    /*
     private def encodePath(inputs: Array[Any]): Path = {
       var path: Path = Path.empty
 
@@ -683,7 +683,7 @@ private[codec] object EncoderDecoder {
           case _: SimpleCodec.Unspecified[_] => Some(inputs(0).asInstanceOf[Method])
           case SimpleCodec.Specified(method) => Some(method)
         }
-      } else None
+      } else None*/
     private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
       if (isByteStream) {
         Body.fromStreamChunked(inputs(0).asInstanceOf[ZStream[Any, Nothing, Byte]])
