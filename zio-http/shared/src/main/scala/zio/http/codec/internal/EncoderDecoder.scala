@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.http.codec.internal
+/*package zio.http.codec.internal
 
 import scala.util.Try
 
@@ -484,59 +484,7 @@ private[codec] object EncoderDecoder {
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
       }
 
-    /*private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
-      if (isByteStream) {
-        Body.fromStreamChunked(inputs(0).asInstanceOf[ZStream[Any, Nothing, Byte]])
-      } else {
-        inputs.length match {
-          case 0 =>
-            Body.empty
-          case 1 =>
-            val bodyCodec = flattened.content(0)
-            bodyCodec.erase.encodeToBody(inputs(0), outputTypes)
-          case _ =>
-            Body.fromMultipartForm(encodeMultipartFormData(inputs, outputTypes), formBoundary)
-        }
-      }
 
-    private def encodeMultipartFormData(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Form = {
-      Form(
-        flattened.content.zipWithIndex.map { case (bodyCodec, idx) =>
-          val input = inputs(idx)
-          val name  = nameByIndex(idx)
-          bodyCodec match {
-            case BodyCodec.Multiple(codec, _) if codec.defaultMediaType.binary =>
-              FormField.streamingBinaryField(
-                name,
-                input.asInstanceOf[ZStream[Any, Nothing, Byte]],
-                bodyCodec.mediaType(outputTypes).getOrElse(MediaType.application.`octet-stream`),
-              )
-            case _                                                             =>
-              formFieldEncoders(idx)(name, input)
-          }
-        }: _*,
-      )
-    }*/
-
-    /*private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers = {
-      if (isByteStream) {
-        val mediaType = flattened.content(0).mediaType(outputTypes).getOrElse(MediaType.application.`octet-stream`)
-        Headers(Header.ContentType(mediaType))
-      } else {
-        if (inputs.length > 1) {
-          Headers(Header.ContentType(MediaType.multipart.`form-data`))
-        } else {
-          if (flattened.content.length < 1) Headers.empty
-          else {
-            val mediaType = flattened
-              .content(0)
-              .mediaType(outputTypes)
-              .getOrElse(throw HttpCodecError.CustomError("InvalidHttpContentCodec", "No codecs found."))
-            Headers(Header.ContentType(mediaType))
-          }
-        }
-      }
-    }*/
     private def isByteStreamBody(codec: BodyCodec[_]): Boolean =
       codec match {
         case BodyCodec.Multiple(codec, _) if codec.defaultMediaType.binary => true
@@ -544,8 +492,8 @@ private[codec] object EncoderDecoder {
       }
   }
 
-}
-/*package zio.http.codec.internal
+}*/
+package zio.http.codec.internal
 
 import scala.util.Try
 
@@ -892,18 +840,11 @@ private[codec] object EncoderDecoder {
         flattened.query,
         inputs,
         QueryParams.empty,
-        (codec, input, queryParams) => {
-          val inputCoerced = input.asInstanceOf[Chunk[Any]]
-
-          if (inputCoerced.isEmpty)
-            queryParams.addQueryParams(codec.name, Chunk.empty[String])
-          else
-            inputCoerced.foreach { in =>
-              val value = codec.erase.textCodec.encode(in)
-              queryParams.addQueryParam(codec.name, value)
-            }
-          queryParams
-        },
+        (codec, input, queryParams) =>
+          queryParams.addQueryParams(
+            codec.name,
+            input.asInstanceOf[Chunk[Any]].map(in => codec.erase.textCodec.encode(in)),
+          ),
       )
 
     private def encodeHeaders(inputs: Array[Any]): Headers =
@@ -954,6 +895,5 @@ private[codec] object EncoderDecoder {
         case _ =>
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
       }
-
   }
-}*/
+}
