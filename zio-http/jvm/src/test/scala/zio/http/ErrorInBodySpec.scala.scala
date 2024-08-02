@@ -5,7 +5,7 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-import zio.http.internal.{DynamicServer, HttpRunnableSpec}
+import zio.http.internal.HttpRunnableSpec
 import zio.http.netty.NettyConfig
 
 object ErrorInBodySpec extends HttpRunnableSpec {
@@ -18,18 +18,17 @@ object ErrorInBodySpec extends HttpRunnableSpec {
     suite("ErrorNotInBodySpec") {
       val tests = test("error not in body") {
         assertZIO(for {
-          port   <- DynamicServer.port
+          port   <- Server.install(routes)
           client <- ZIO.service[Client]
-          url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
+          url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "testr")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
         } yield content)(isEmptyString)
       }
       ZIO.scoped(app.as(List(tests)))
-    }.provideSome[DynamicServer & Server & Client](Scope.default)
+    }.provideSome[Server & Client](Scope.default)
       .provideShared(
         ZLayer.succeed(Server.Config.default),
-        DynamicServer.live,
         Server.customized,
         ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
         Client.default,
