@@ -14,7 +14,8 @@ object ErrorInBodySpec extends ZIOHttpSpec {
 
   def notInBodySpec =
     suite("ErrorNotInBodySpec") {
-      val tests = test("error not in body") {
+      // val tests =
+      test("error not in body") {
         assertZIO(for {
           port   <- Server.install(routes)
           client <- ZIO.service[Client]
@@ -23,7 +24,7 @@ object ErrorInBodySpec extends ZIOHttpSpec {
           content <- body.asString
         } yield content)(isEmptyString)
       }
-      ZIO.scoped(tests)
+      // ZIO.scoped(tests)
       // ZIO.scoped(app.as(List(tests)))
     }.provideSome[Server & Client](Scope.default)
       .provideShared(
