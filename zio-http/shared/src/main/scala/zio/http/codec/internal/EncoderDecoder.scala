@@ -410,7 +410,10 @@ private[codec] object EncoderDecoder {
         inputs,
         QueryParams.empty,
         (codec, input, queryParams) =>
-          queryParams.addQueryParams(query.name, input.asInstanceOf[Chunk[Any]].map(in => query.textCodec.encode(in))),
+          queryParams.addQueryParams(
+            codec.name,
+            input.asInstanceOf[Chunk[Any]].map(in => codec.erase.textCodec.encode(in)),
+          ),
       )
 
     /*private def encodeQuery(inputs: Array[Any]): QueryParams = {
