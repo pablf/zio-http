@@ -122,7 +122,7 @@ private[zio] final case class ServerInboundHandler(
             ctx.close(): Unit
           case t: Throwable            => {
             attemptFastWrite(ctx, Response.fromThrowable(t, config.errorInBody))
-            ctx.close()
+            ctx.close(): Unit
             // super.exceptionCaught(ctx, t)
           }
         }
