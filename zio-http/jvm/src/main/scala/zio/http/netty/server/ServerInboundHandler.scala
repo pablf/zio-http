@@ -90,6 +90,8 @@ private[zio] final case class ServerInboundHandler(
               writeResponse(ctx, runtime, exit, req)(releaseRequest)
             }
           }
+        } catch {
+          case NonFatal(e) => fastEncode(withDefaultErrorResponse(e), Array.emptyByteArray)
         } finally {
           ReferenceCountUtil.safeRelease(jReq)
         }
