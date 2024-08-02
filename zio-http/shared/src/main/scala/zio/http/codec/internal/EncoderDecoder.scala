@@ -289,8 +289,7 @@ private[codec] object EncoderDecoder {
           if (params.isEmpty)
             throw HttpCodecError.MissingQueryParam(codec.name)
           else {
-            val parsedParams = params.collect(codec.erase.textCodec)
-            parsedParams
+            params.collect(codec.erase.textCodec)
           }
         },
       )
@@ -450,7 +449,7 @@ private[codec] object EncoderDecoder {
     private def encodeMethod(inputs: Array[Any]): Option[Method] =
       simpleEncode(flattened.method, inputs)
 
-    /*private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
+    private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
       inputs.length match {
         case 0 =>
           Body.empty
@@ -469,7 +468,7 @@ private[codec] object EncoderDecoder {
       }
 
       Form(formFields: _*)
-    }*/
+    }
 
     private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers =
       inputs.length match {
@@ -485,7 +484,7 @@ private[codec] object EncoderDecoder {
           Headers(Header.ContentType(MediaType.multipart.`form-data`))
       }
 
-    private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
+    /*private def encodeBody(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Body =
       if (isByteStream) {
         Body.fromStreamChunked(inputs(0).asInstanceOf[ZStream[Any, Nothing, Byte]])
       } else {
@@ -517,7 +516,7 @@ private[codec] object EncoderDecoder {
           }
         }: _*,
       )
-    }
+    }*/
 
     /*private def encodeContentType(inputs: Array[Any], outputTypes: Chunk[MediaTypeWithQFactor]): Headers = {
       if (isByteStream) {
@@ -754,8 +753,7 @@ private[codec] object EncoderDecoder {
           if (params.isEmpty)
             throw HttpCodecError.MissingQueryParam(codec.name)
           else {
-            val parsedParams = params.collect(codec.erase.textCodec)
-            parsedParams
+            params.collect(codec.erase.textCodec)
           }
         },
       )
