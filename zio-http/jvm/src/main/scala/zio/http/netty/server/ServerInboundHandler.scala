@@ -297,7 +297,9 @@ private[zio] final case class ServerInboundHandler(
   }
 
   private def writeNotFound(ctx: ChannelHandlerContext, req: Request): Unit = {
-    val response = if (config.errorInBody) Response.notFound(req.url.encode) else Response.notFound
+    val response =
+      if (config.errorInBody) Response.notFound("uuu2")
+      else Response.notFound // Response.notFound(req.url.encode) else Response.notFound
     attemptFastWrite(ctx, response): Unit
   }
 
