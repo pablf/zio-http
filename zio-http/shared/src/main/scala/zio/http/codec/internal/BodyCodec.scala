@@ -134,7 +134,7 @@ private[http] object BodyCodec {
     def encodeToField(value: A, mediaTypes: Chunk[MediaTypeWithQFactor], name: String)(implicit
       trace: Trace,
     ): FormField = {
-      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirstOrDefault(mediaTypes)
       if (mediaType.binary) {
         FormField.binaryField(
           name,
@@ -151,7 +151,7 @@ private[http] object BodyCodec {
     }
 
     def encodeToBody(value: A, mediaTypes: Chunk[MediaTypeWithQFactor])(implicit trace: Trace): Body = {
-      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirstOrDefault(mediaTypes)
       Body.fromChunk(codec0.encode(value)).contentType(mediaType)
     }
 
@@ -186,7 +186,7 @@ private[http] object BodyCodec {
     def encodeToField(value: ZStream[Any, Nothing, E], mediaTypes: Chunk[MediaTypeWithQFactor], name: String)(implicit
       trace: Trace,
     ): FormField = {
-      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirstOrDefault(mediaTypes)
       val stream                                        =
         if (mediaType.binary) value.asInstanceOf[ZStream[Any, Nothing, Byte]] else value >>> codec0.streamEncoder
       FormField.streamingBinaryField(
@@ -199,7 +199,7 @@ private[http] object BodyCodec {
     def encodeToBody(value: ZStream[Any, Nothing, E], mediaTypes: Chunk[MediaTypeWithQFactor])(implicit
       trace: Trace,
     ): Body = {
-      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirst(mediaTypes)
+      val (mediaType, BinaryCodecWithSchema(codec0, _)) = codec.chooseFirstOrDefault(mediaTypes)
       if (mediaType.binary) Body.fromStreamChunked(value.asInstanceOf[ZStream[Any, Nothing, Byte]])
       else Body.fromStreamChunked(value >>> codec0.streamEncoder).contentType(mediaType)
     }
