@@ -321,7 +321,8 @@ private[codec] object EncoderDecoder {
           codec match {
             case SimpleCodec.Specified(expected) if expected != status =>
               throw HttpCodecError.MalformedStatus(expected, status)
-            case _                                                     => status
+            case _: SimpleCodec.Unspecified[_]                         => status
+            case _                                                     => ()
           },
       )
 
@@ -1087,7 +1088,7 @@ private[codec] object EncoderDecoder {
       val formFields = flattened.content.zipWithIndex.map { case (bodyCodec, idx) =>
         val input = inputs(idx)
         val name  = nameByIndex(idx)
-        bodyCodec.erase.encodeToField(input, name)
+        bodyCodec.erase.encodeToField(input, outputTypes, name)
       }
 
       Form(formFields: _*)
