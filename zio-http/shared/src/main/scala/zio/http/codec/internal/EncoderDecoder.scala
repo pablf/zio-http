@@ -464,7 +464,7 @@ private[codec] object EncoderDecoder {
       val formFields = flattened.content.zipWithIndex.map { case (bodyCodec, idx) =>
         val input = inputs(idx)
         val name  = nameByIndex(idx)
-        bodyCodec.erase.encodeToField(input, name)
+        bodyCodec.erase.encodeToField(input, outputTypes, name)
       }
 
       Form(formFields: _*)
