@@ -167,7 +167,7 @@ object Response {
       case Left(failure: Throwable) => fromThrowable(failure, errorInBody)
       case Left(failure: Cause[_])  => fromCause(failure, errorInBody)
       case _                        => {
-        val msg = cause.prettyPrint.take(10000)
+        val msg = if (errorInBody) null else cause.prettyPrint.take(10000)
         if (cause.isInterruptedOnly) error(Status.RequestTimeout, msg)
         else error(Status.InternalServerError, msg)
       }

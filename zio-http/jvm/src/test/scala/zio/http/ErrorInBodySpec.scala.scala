@@ -10,11 +10,10 @@ import zio.http.netty.NettyConfig
 
 object ErrorInBodySpec extends ZIOHttpSpec {
 
-  private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("WEIRDERROR")))
-
   def notInBodySpec =
     suite("ErrorNotInBodySpec")(
       test("error not in body by default") {
+        val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("Error")))
         assertZIO(for {
           port   <- Server.install(routes)
           client <- ZIO.service[Client]
@@ -24,15 +23,17 @@ object ErrorInBodySpec extends ZIOHttpSpec {
         } yield content)(isEmptyString)
       },
       test("include error in body") {
+        val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("Error")))
         assertZIO(for {
           port   <- Server.install(routes.includeErrorDetails)
           client <- ZIO.service[Client]
           url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
-        } yield content)(isEmptyString)
+        } yield content)(not(isEmptyString))
       },
       test("exclude error in body") {
+        val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("Error")))
         assertZIO(for {
           port   <- Server.install(routes.includeErrorDetails.excludeErrorDetails)
           client <- ZIO.service[Client]
