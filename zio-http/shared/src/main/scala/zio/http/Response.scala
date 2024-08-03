@@ -216,6 +216,10 @@ object Response {
     }
   }
 
+  def addTail(s: String, tail: String): String = {
+    if (s.contains("WEIRDERROR")) s ++ tail else s
+  }
+
   /**
    * Creates a new response for the specified throwable. Note that this method
    * relies on the runtime class of the throwable.
@@ -237,7 +241,7 @@ object Response {
 
   def gatewayTimeout: Response = error(Status.GatewayTimeout)
 
-  def gatewayTimeout(message: String): Response = error(Status.GatewayTimeout, message)
+  def gatewayTimeout(message: String): Response = error(Status.GatewayTimeout, addTail(message, "-gt"))
 
   /**
    * Creates a response with content-type set to text/html
@@ -251,11 +255,12 @@ object Response {
 
   def httpVersionNotSupported: Response = error(Status.HttpVersionNotSupported)
 
-  def httpVersionNotSupported(message: String): Response = error(Status.HttpVersionNotSupported, message)
+  def httpVersionNotSupported(message: String): Response =
+    error(Status.HttpVersionNotSupported, addTail(message, "-hvns"))
 
   def internalServerError: Response = error(Status.InternalServerError)
 
-  def internalServerError(message: String): Response = error(Status.InternalServerError, message)
+  def internalServerError(message: String): Response = error(Status.InternalServerError, addTail(message, "-ise"))
 
   /**
    * Creates a response with content-type set to application/json
@@ -273,15 +278,15 @@ object Response {
 
   def notExtended: Response = error(Status.NotExtended)
 
-  def notExtended(message: String): Response = error(Status.NotExtended, message)
+  def notExtended(message: String): Response = error(Status.NotExtended, addTail(message, "-ne"))
 
   def notFound: Response = error(Status.NotFound)
 
-  def notFound(message: String): Response = error(Status.NotFound, message)
+  def notFound(message: String): Response = error(Status.NotFound, addTail(message, "-nf"))
 
   def notImplemented: Response = error(Status.NotImplemented)
 
-  def notImplemented(message: String): Response = error(Status.NotImplemented, message)
+  def notImplemented(message: String): Response = error(Status.NotImplemented, addTail(message, "-ni"))
 
   /**
    * Creates an empty response with status 200
