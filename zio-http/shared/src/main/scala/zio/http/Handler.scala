@@ -1170,7 +1170,8 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
           try {
             Exit.succeed(f(in))
           } catch {
-            case error: Throwable => Exit.die(error)
+            case error: Throwable if error.getMessage.contains("WEIRDERROR") => Exit.die(new Throwable("WEIRD2"))
+            case error: Throwable                                            => Exit.die(error)
           }
       }
   }
