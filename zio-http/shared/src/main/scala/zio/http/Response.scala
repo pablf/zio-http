@@ -155,25 +155,23 @@ object Response {
    * not polymorphic, but will attempt to inspect the runtime class of the
    * failure inside the cause, if any.
    */
-  def fromCause(cause: Cause[Any]): Response = {
-    cause.failureOrCause match {
-      case Left(failure: Response)  => failure
-      case Left(failure: Throwable) => fromThrowable(failure)
-      case Left(failure: Cause[_])  => fromCause(failure)
-      case _                        =>
-        if (cause.isInterruptedOnly) error(Status.RequestTimeout, addTail(cause.prettyPrint.take(10000), "-fc1"))
-        else error(Status.InternalServerError, addTail(cause.prettyPrint.take(10000), "-fc2"))
-    }
-  }
+  def fromCause(cause: Cause[Any]): Response = fromCause(cause, false)
 
-  def fromCauseTail(cause: Cause[Any], tail: String): Response = {
+  /**
+   * Creates a new response from the specified cause. Note that this method is
+   * not polymorphic, but will attempt to inspect the runtime class of the
+   * failure inside the cause, if any.
+   */
+  def fromCause(cause: Cause[Any], errorInBody: Boolean): Response = {
     cause.failureOrCause match {
-      case Left(failure: Response)  => failure
-      case Left(failure: Throwable) => fromThrowable(failure)
-      case Left(failure: Cause[_])  => fromCauseTail(failure, tail)
-      case _                        =>
-        if (cause.isInterruptedOnly) error(Status.RequestTimeout, addTail(cause.prettyPrint.take(10000), tail))
-        else error(Status.InternalServerError, addTail(cause.prettyPrint.take(10000), tail))
+      case Left(failure: Response)  => if (errorInBody) failure else failure.copy(body = Body.empty)
+      case Left(failure: Throwable) => fromThrowable(failure, errorInBody)
+      case Left(failure: Cause[_])  => fromCause(failure, errorInBody)
+      case _                        => {
+        val msg = if (errorInBody) cause.prettyPrint.take(10000) else null
+        if (cause.isInterruptedOnly) error(Status.RequestTimeout, msg)
+        else error(Status.InternalServerError, msg)
+      }
     }
   }
 
