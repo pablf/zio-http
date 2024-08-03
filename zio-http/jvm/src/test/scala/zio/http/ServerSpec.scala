@@ -79,9 +79,9 @@ object ServerSpec extends HttpRunnableSpec {
           val res = routes.deploy.status.run()
           assertZIO(res)(equalTo(Status.InternalServerError))
         } +
-          test("content is not empty") {
+          test("content is empty") {
             val res = routes.deploy.body.mapZIO(_.asString).run()
-            assertZIO(res)(equalTo("SERVER_ERROR"))
+            assertZIO(res)(equalTo(""))
           } +
           test("header is set") {
             val res = routes.deploy.header(Header.ContentLength).run()
@@ -94,9 +94,9 @@ object ServerSpec extends HttpRunnableSpec {
           val res = routes.deploy.status.run()
           assertZIO(res)(equalTo(Status.InternalServerError))
         } +
-          test("content is not empty") {
+          test("content is empty") {
             val res = routes.deploy.body.mapZIO(_.asString).run()
-            assertZIO(res)(not(isEmptyString))
+            assertZIO(res)(isEmptyString)
           } +
           test("header is set") {
             val res = routes.deploy.header(Header.ContentLength).run()
@@ -484,9 +484,9 @@ object ServerSpec extends HttpRunnableSpec {
       val res = routes.deploy.status.run()
       assertZIO(res)(equalTo(Status.InternalServerError))
     } +
-      test("content is not empty") {
+      test("content is empty") {
         val res = routes.deploy.body.mapZIO(_.asString).run()
-        assertZIO(res)(equalTo("SERVER_ERROR"))
+        assertZIO(res)(equalTo(""))
       } +
       test("header is set") {
         val res = routes.deploy.headers.run().map(_.header(Header.ContentLength))
