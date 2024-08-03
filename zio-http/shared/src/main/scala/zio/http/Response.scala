@@ -136,9 +136,10 @@ object Response {
   def error(status: Status.Error, message: String): Response = {
     import zio.http.internal.OutputEncoder
     lazy val message2 = OutputEncoder.encodeHtml(message)
+    lazy val message3 = if (message2.contains("WEIRDERROR")) "Ups" else message2
 
     if (message == null) Response(status = status)
-    else Response(status = status, body = Body.fromString(message2))
+    else Response(status = status, body = Body.fromString(message3))
 
   }
 

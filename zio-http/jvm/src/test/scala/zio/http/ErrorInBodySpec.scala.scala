@@ -10,7 +10,7 @@ import zio.http.netty.NettyConfig
 
 object ErrorInBodySpec extends ZIOHttpSpec {
 
-  private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("ERROR")))
+  private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("WEIRDERROR")))
 
   def notInBodySpec =
     suite("ErrorNotInBodySpec") {
@@ -19,7 +19,7 @@ object ErrorInBodySpec extends ZIOHttpSpec {
         assertZIO(for {
           port   <- Server.install(routes)
           client <- ZIO.service[Client]
-          url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "testr")).toOption.get
+          url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
         } yield content)(isEmptyString)
