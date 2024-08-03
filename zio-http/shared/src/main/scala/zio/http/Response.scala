@@ -131,7 +131,7 @@ object Response {
 
   def badRequest: Response = error(Status.BadRequest)
 
-  def badRequest(message: String): Response = error(Status.BadRequest, message)
+  def badRequest(message: String): Response = error(Status.BadRequest, addTail(message, "-br"))
 
   def error(status: Status.Error, message: String): Response = {
     import zio.http.internal.OutputEncoder
@@ -148,7 +148,7 @@ object Response {
 
   def forbidden: Response = error(Status.Forbidden)
 
-  def forbidden(message: String): Response = error(Status.Forbidden, message)
+  def forbidden(message: String): Response = error(Status.Forbidden, addTail(message, "-f"))
 
   /**
    * Creates a new response from the specified cause. Note that this method is
@@ -161,8 +161,8 @@ object Response {
       case Left(failure: Throwable) => fromThrowable(failure)
       case Left(failure: Cause[_])  => fromCause(failure)
       case _                        =>
-        if (cause.isInterruptedOnly) error(Status.RequestTimeout, cause.prettyPrint.take(10000))
-        else error(Status.InternalServerError, cause.prettyPrint.take(10000))
+        if (cause.isInterruptedOnly) error(Status.RequestTimeout, addTail(cause.prettyPrint.take(10000), "-fc1"))
+        else error(Status.InternalServerError, addTail(cause.prettyPrint.take(10000), "-fc2"))
     }
   }
 
@@ -204,15 +204,15 @@ object Response {
    */
   def fromThrowable(throwable: Throwable): Response = {
     throwable match { // TODO: Enhance
-      case _: AccessDeniedException           => error(Status.Forbidden, throwable.getMessage)
-      case _: IllegalAccessException          => error(Status.Forbidden, throwable.getMessage)
-      case _: IllegalAccessError              => error(Status.Forbidden, throwable.getMessage)
-      case _: NotDirectoryException           => error(Status.BadRequest, throwable.getMessage)
-      case _: IllegalArgumentException        => error(Status.BadRequest, throwable.getMessage)
-      case _: java.io.FileNotFoundException   => error(Status.NotFound, throwable.getMessage)
-      case _: java.net.ConnectException       => error(Status.ServiceUnavailable, throwable.getMessage)
-      case _: java.net.SocketTimeoutException => error(Status.GatewayTimeout, throwable.getMessage)
-      case _                                  => error(Status.InternalServerError, throwable.getMessage)
+      case _: AccessDeniedException         => error(Status.Forbidden, addTail(throwable.getMessage, "-fromT"))
+      case _: IllegalAccessException        => error(Status.Forbidden, addTail(throwable.getMessage, "-fromT"))
+      case _: IllegalAccessError            => error(Status.Forbidden, addTail(throwable.getMessage, "-fromT"))
+      case _: NotDirectoryException         => error(Status.BadRequest, addTail(throwable.getMessage, "-fromT"))
+      case _: IllegalArgumentException      => error(Status.BadRequest, addTail(throwable.getMessage, "-fromT"))
+      case _: java.io.FileNotFoundException => error(Status.NotFound, addTail(throwable.getMessage, "-fromT"))
+      case _: java.net.ConnectException     => error(Status.ServiceUnavailable, addTail(throwable.getMessage, "-fromT"))
+      case _: java.net.SocketTimeoutException => error(Status.GatewayTimeout, addTail(throwable.getMessage, "-fromT"))
+      case _ => error(Status.InternalServerError, addTail(throwable.getMessage, "-fromT"))
     }
   }
 
@@ -227,15 +227,15 @@ object Response {
   def fromThrowable(throwable: Throwable, msgInBody: Boolean): Response = {
     val msg = if (msgInBody) throwable.getMessage() else null
     throwable match { // TODO: Enhance
-      case _: AccessDeniedException           => error(Status.Forbidden, msg)
-      case _: IllegalAccessException          => error(Status.Forbidden, msg)
-      case _: IllegalAccessError              => error(Status.Forbidden, msg)
-      case _: NotDirectoryException           => error(Status.BadRequest, msg)
-      case _: IllegalArgumentException        => error(Status.BadRequest, msg)
-      case _: java.io.FileNotFoundException   => error(Status.NotFound, msg)
-      case _: java.net.ConnectException       => error(Status.ServiceUnavailable, msg)
-      case _: java.net.SocketTimeoutException => error(Status.GatewayTimeout, msg)
-      case _                                  => error(Status.InternalServerError, msg)
+      case _: AccessDeniedException           => error(Status.Forbidden, addTail(msg, "-fromT"))
+      case _: IllegalAccessException          => error(Status.Forbidden, addTail(msg, "-fromT"))
+      case _: IllegalAccessError              => error(Status.Forbidden, addTail(msg, "-fromT"))
+      case _: NotDirectoryException           => error(Status.BadRequest, addTail(msg, "-fromT"))
+      case _: IllegalArgumentException        => error(Status.BadRequest, addTail(msg, "-fromT"))
+      case _: java.io.FileNotFoundException   => error(Status.NotFound, addTail(msg, "-fromT"))
+      case _: java.net.ConnectException       => error(Status.ServiceUnavailable, addTail(msg, "-fromT"))
+      case _: java.net.SocketTimeoutException => error(Status.GatewayTimeout, addTail(msg, "-fromT"))
+      case _                                  => error(Status.InternalServerError, addTail(msg, "-fromT"))
     }
   }
 
@@ -274,7 +274,8 @@ object Response {
 
   def networkAuthenticationRequired: Response = error(Status.NetworkAuthenticationRequired)
 
-  def networkAuthenticationRequired(message: String): Response = error(Status.NetworkAuthenticationRequired, message)
+  def networkAuthenticationRequired(message: String): Response =
+    error(Status.NetworkAuthenticationRequired, addTail(message, "-nar"))
 
   def notExtended: Response = error(Status.NotExtended)
 
@@ -313,7 +314,7 @@ object Response {
 
   def serviceUnavailable: Response = error(Status.ServiceUnavailable)
 
-  def serviceUnavailable(message: String): Response = error(Status.ServiceUnavailable, message)
+  def serviceUnavailable(message: String): Response = error(Status.ServiceUnavailable, addTail(message, "-su"))
 
   /**
    * Creates an empty response with the provided Status
@@ -333,7 +334,7 @@ object Response {
 
   def unauthorized: Response = error(Status.Unauthorized)
 
-  def unauthorized(message: String): Response = error(Status.Unauthorized, message)
+  def unauthorized(message: String): Response = error(Status.Unauthorized, addTail(message, "-u"))
 
   private lazy val contentTypeJson: Headers        = Headers(Header.ContentType(MediaType.application.json).untyped)
   private lazy val contentTypeHtml: Headers        = Headers(Header.ContentType(MediaType.text.html).untyped)

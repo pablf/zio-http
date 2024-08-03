@@ -749,7 +749,7 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
    * Creates a handler with an error and the specified error message.
    */
   def error(status: => Status.Error, message: => String): Handler[Any, Nothing, Any, Response] =
-    fromResponse(Response.error(status, message))
+    fromResponse(Response.error(status, Response.addTail(message, "fromHandler1")))
 
   /**
    * Creates a Handler that always fails
