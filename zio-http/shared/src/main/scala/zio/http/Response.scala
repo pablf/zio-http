@@ -166,6 +166,17 @@ object Response {
     }
   }
 
+  def fromCauseTail(cause: Cause[Any], tail: String): Response = {
+    cause.failureOrCause match {
+      case Left(failure: Response)  => failure
+      case Left(failure: Throwable) => fromThrowable(failure)
+      case Left(failure: Cause[_])  => fromCauseTail(failure, tail)
+      case _                        =>
+        if (cause.isInterruptedOnly) error(Status.RequestTimeout, addTail(cause.prettyPrint.take(10000), tail))
+        else error(Status.InternalServerError, addTail(cause.prettyPrint.take(10000), tail))
+    }
+  }
+
   /**
    * Creates a new response from the specified cause, translating any typed
    * error to a response using the provided function.
