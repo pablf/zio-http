@@ -147,7 +147,7 @@ object Response {
 
   def forbidden: Response = error(Status.Forbidden)
 
-  def forbidden(message: String): Response = error(Status.Forbidden, addTail(message, "-f"))
+  def forbidden(message: String): Response = error(Status.Forbidden, message)
 
   /**
    * Creates a new response from the specified cause. Note that this method is
@@ -167,7 +167,7 @@ object Response {
       case Left(failure: Throwable) => fromThrowable(failure, errorInBody)
       case Left(failure: Cause[_])  => fromCause(failure, errorInBody)
       case _                        => {
-        val msg = if (errorInBody) cause.prettyPrint.take(10000) else null
+        val msg = cause.prettyPrint.take(10000)
         if (cause.isInterruptedOnly) error(Status.RequestTimeout, msg)
         else error(Status.InternalServerError, msg)
       }
