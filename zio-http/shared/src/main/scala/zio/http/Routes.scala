@@ -353,7 +353,7 @@ object Routes extends RoutesCompanionVersionSpecific {
     ): Tree[Env1] =
       Tree(self.tree.addAll(route.routePattern.alternatives.map(alt => (alt, route.toHandler(errorInBody)))))
 
-    final def addAll[Env1 <: Env](routes: Iterable[Route[Env1, Response]], errorInBody: Boolea)(implicit
+    final def addAll[Env1 <: Env](routes: Iterable[Route[Env1, Response]], errorInBody: Boolean)(implicit
       trace: Trace,
     ): Tree[Env1] =
       // only change to flatMap when Scala 2.12 is dropped
