@@ -82,12 +82,16 @@ private[zio] final case class ServerInboundHandler(
             attemptFastWrite(ctx, Response.fromThrowable(throwable, config.errorInBody))
             releaseRequest()
           } else {
-            val req  = makeZioRequest(ctx, jReq)
-            val exit = app(req)
-            if (attemptImmediateWrite(ctx, exit)) {
-              releaseRequest()
-            } else {
-              writeResponse(ctx, runtime, exit, req)(releaseRequest)
+            val req = makeZioRequest(ctx, jReq)
+            try {
+              val exit = app(req)
+              if (attemptImmediateWrite(ctx, exit)) {
+                releaseRequest()
+              } else {
+                writeResponse(ctx, runtime, exit, req)(releaseRequest)
+              }
+            } catch {
+              case t: Throwable if t.getMessage.contains("WEIRDERROR") => ()
             }
           }
         } finally {
