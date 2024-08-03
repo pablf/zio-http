@@ -30,7 +30,7 @@ import zio.http.codec.PathCodec
  * HTTP applications can be installed into a [[zio.http.Server]], which is
  * capable of using them to serve requests.
  */
-final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]], private val errorInBody: Boolean = false) {
+final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]], private val errorInBody: Boolean = true) {
   self =>
   private lazy val _tree: Routes.Tree[_] =
     Routes.Tree.fromRoutes(routes.asInstanceOf[Chunk[Route[Env, Response]]], errorInBody)
@@ -348,12 +348,12 @@ object Routes extends RoutesCompanionVersionSpecific {
     final def ++[Env1 <: Env](that: Tree[Env1]): Tree[Env1] =
       Tree(self.tree ++ that.tree)
 
-    final def add[Env1 <: Env](route: Route[Env1, Response], errorInBody: Boolean = false)(implicit
+    final def add[Env1 <: Env](route: Route[Env1, Response], errorInBody: Boolean)(implicit
       trace: Trace,
     ): Tree[Env1] =
       Tree(self.tree.addAll(route.routePattern.alternatives.map(alt => (alt, route.toHandler(errorInBody)))))
 
-    final def addAll[Env1 <: Env](routes: Iterable[Route[Env1, Response]], errorInBody: Boolean = false)(implicit
+    final def addAll[Env1 <: Env](routes: Iterable[Route[Env1, Response]], errorInBody: Boolea)(implicit
       trace: Trace,
     ): Tree[Env1] =
       // only change to flatMap when Scala 2.12 is dropped
@@ -369,7 +369,7 @@ object Routes extends RoutesCompanionVersionSpecific {
   private[http] object Tree                                                                         {
     val empty: Tree[Any] = Tree(RoutePattern.Tree.empty)
 
-    def fromRoutes[Env](routes: Chunk[zio.http.Route[Env, Response]], errorInBody: Boolean = false)(implicit
+    def fromRoutes[Env](routes: Chunk[zio.http.Route[Env, Response]], errorInBody: Boolean)(implicit
       trace: Trace,
     ): Tree[Env] =
       empty.addAll(routes, errorInBody)
