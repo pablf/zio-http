@@ -347,10 +347,7 @@ object Route                   {
   }
 
   def handled[Params, Env](rpm: Route.Builder[Env, Params]): HandledConstructor[Env, Params] =
-    new HandledConstructor[Env, Params](rpm, false)
-
-  def handled[Params, Env](rpm: Route.Builder[Env, Params], errorInBody: Boolean): HandledConstructor[Env, Params] =
-    new HandledConstructor[Env, Params](rpm, errorInBody)
+    new HandledConstructor[Env, Params](rpm)
 
   val notFound: Route[Any, Nothing] =
     Handled(RoutePattern.any, Handler.fromFunction[RoutePattern[_]](_ => Handler.notFound), Trace.empty)
@@ -361,10 +358,10 @@ object Route                   {
   def route[Params, Env](rpm: Route.Builder[Env, Params]): UnhandledConstructor[Env, Params] =
     new UnhandledConstructor[Env, Params](rpm)
 
-  final class HandledConstructor[-Env, Params](val rpm: Route.Builder[Env, Params], errorInBody: Boolean)
-      extends AnyVal {
+  final class HandledConstructor[-Env, Params](val rpm: Route.Builder[Env, Params]) extends AnyVal {
     def apply[Env1 <: Env, In](
       handler: Handler[Env1, Response, In, Response],
+      errorInBody: Boolean,
     )(implicit zippable: Zippable.Out[Params, Request, In], trace: Trace): Route[Env1, Nothing] = {
       val handler2: Handler[Any, Nothing, RoutePattern[_], Handler[Env1, Response, Request, Response]] = {
         Handler.fromFunction[RoutePattern[_]] { pattern =>
@@ -516,7 +513,7 @@ object Route                   {
     )(implicit trace: Trace): Handler[Env1, Response, Request, Response] = {
       implicit val z = zippable
 
-      Route.handled(rpm, errorInBody)(handler).toHandler
+      Route.handled(rpm)(handler, errorInBody).toHandler
     }
   }
 
