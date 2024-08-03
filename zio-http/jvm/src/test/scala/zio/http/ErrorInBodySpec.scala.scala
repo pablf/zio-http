@@ -13,9 +13,8 @@ object ErrorInBodySpec extends ZIOHttpSpec {
   private val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("WEIRDERROR")))
 
   def notInBodySpec =
-    suite("ErrorNotInBodySpec") {
-      // val tests =
-      test("error not in body") {
+    suite("ErrorNotInBodySpec")(
+      test("error not in body by default") {
         assertZIO(for {
           port   <- Server.install(routes)
           client <- ZIO.service[Client]
@@ -23,10 +22,26 @@ object ErrorInBodySpec extends ZIOHttpSpec {
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
         } yield content)(isEmptyString)
-      }
-      // ZIO.scoped(tests)
-      // ZIO.scoped(app.as(List(tests)))
-    }.provideSome[Server & Client](Scope.default)
+      },
+      test("include error in body") {
+        assertZIO(for {
+          port   <- Server.install(routes.includeErrorDetails)
+          client <- ZIO.service[Client]
+          url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
+          body    <- client(Request(url = url)).map(_.body)
+          content <- body.asString
+        } yield content)(isEmptyString)
+      },
+      test("exclude error in body") {
+        assertZIO(for {
+          port   <- Server.install(routes.includeErrorDetails.excludeErrorDetails)
+          client <- ZIO.service[Client]
+          url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
+          body    <- client(Request(url = url)).map(_.body)
+          content <- body.asString
+        } yield content)(isEmptyString)
+      },
+    ).provideSome[Server & Client](Scope.default)
       .provideShared(
         ZLayer.succeed(Server.Config.default),
         Server.customized,
