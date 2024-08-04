@@ -89,10 +89,11 @@ sealed trait Route[-Env, +Err] { self =>
       case Provided(route, env)                     => Provided(route.handleErrorCause(f), env)
       case Augmented(route, aspect)                 => Augmented(route.handleErrorCause(f), aspect)
       case Handled(routePattern, handler, location) =>
-        Handled(routePattern, handler.map(_.mapErrorCause(c => f(c.asInstanceOf[Cause[Nothing]]))), location)
+        Handled(routePattern, handler.compose(_.map(_.mapErrorCause(c => f(c.asInstanceOf[Cause[Nothing]])))), location)
 
       case Unhandled(rpm, handler, zippable, location) =>
-        val handler2: Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
+        val handler2: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
+          errorInBody
           Handler.fromFunction[RoutePattern[_]] { pattern =>
             val paramHandler = {
               Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
@@ -127,10 +128,15 @@ sealed trait Route[-Env, +Err] { self =>
       case Provided(route, env)                     => Provided(route.handleErrorCauseZIO(f), env)
       case Augmented(route, aspect)                 => Augmented(route.handleErrorCauseZIO(f), aspect)
       case Handled(routePattern, handler, location) =>
-        Handled[Env](routePattern, handler.map(_.mapErrorCauseZIO(c => f(c.asInstanceOf[Cause[Nothing]]))), location)
+        Handled[Env](
+          routePattern,
+          handler.compose(_.map(_.mapErrorCauseZIO(c => f(c.asInstanceOf[Cause[Nothing]])))),
+          location,
+        )
 
       case Unhandled(rpm, handler, zippable, location) =>
-        val handler2: Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
+        val handler2: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
+          errorInBody
           Handler.fromFunction[RoutePattern[_]] { pattern =>
             val paramHandler =
               Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
@@ -198,35 +204,36 @@ sealed trait Route[-Env, +Err] { self =>
       case Handled(routePattern, handler, location) =>
         Handled[Env](
           routePattern,
-          handler.map { handler =>
+          handler.compose(_.map { handler =>
             Handler.fromFunctionHandler[Request] { (req: Request) =>
               handler.mapErrorCause(c => f(req, c.asInstanceOf[Cause[Nothing]]))
             }
-          },
+          }),
           location,
         )
 
       case Unhandled(rpm, handler, zippable, location) =>
-        val handler2: Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
-          Handler.fromFunction[RoutePattern[_]] { pattern =>
-            val paramHandler =
-              Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
-                pattern.asInstanceOf[RoutePattern[rpm.PathInput]].decode(request.method, request.path) match {
-                  case Left(error)  => ZIO.dieMessage(error)
-                  case Right(value) =>
-                    val params = rpm.zippable.zip(value, ctx)
+        val handler2: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
+          errorInBody =>
+            Handler.fromFunction[RoutePattern[_]] { pattern =>
+              val paramHandler =
+                Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
+                  pattern.asInstanceOf[RoutePattern[rpm.PathInput]].decode(request.method, request.path) match {
+                    case Left(error)  => ZIO.dieMessage(error)
+                    case Right(value) =>
+                      val params = rpm.zippable.zip(value, ctx)
 
-                    handler(zippable.zip(params, request))
+                      handler(zippable.zip(params, request))
+                  }
                 }
-              }
 
-            // Sandbox before applying aspect:
-            rpm.aspect.applyHandlerContext(
-              Handler.fromFunctionHandler[(rpm.Context, Request)] { case (_, req) =>
-                paramHandler.mapErrorCause(f(req, _))
-              },
-            )
-          }
+              // Sandbox before applying aspect:
+              rpm.aspect.applyHandlerContext(
+                Handler.fromFunctionHandler[(rpm.Context, Request)] { case (_, req) =>
+                  paramHandler.mapErrorCause(f(req, _))
+                },
+              )
+            }
         }
 
         Handled(rpm.routePattern, handler2, location)
@@ -248,33 +255,34 @@ sealed trait Route[-Env, +Err] { self =>
       case Handled(routePattern, handler, location) =>
         Handled[Env](
           routePattern,
-          handler.map { handler =>
+          handler.compose(_.map { handler =>
             Handler.fromFunctionHandler[Request] { (req: Request) =>
               handler.mapErrorCauseZIO(c => f(req, c.asInstanceOf[Cause[Nothing]]))
             }
-          },
+          }),
           location,
         )
 
       case Unhandled(rpm, handler, zippable, location) =>
-        val handler2: Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
-          Handler.fromFunction[RoutePattern[_]] { pattern =>
-            val paramHandler =
-              Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
-                pattern.asInstanceOf[RoutePattern[rpm.PathInput]].decode(request.method, request.path) match {
-                  case Left(error)  => ZIO.dieMessage(error)
-                  case Right(value) =>
-                    val params = rpm.zippable.zip(value, ctx)
+        val handler2: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]] = {
+          errorInBody =>
+            Handler.fromFunction[RoutePattern[_]] { pattern =>
+              val paramHandler =
+                Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
+                  pattern.asInstanceOf[RoutePattern[rpm.PathInput]].decode(request.method, request.path) match {
+                    case Left(error)  => ZIO.dieMessage(error)
+                    case Right(value) =>
+                      val params = rpm.zippable.zip(value, ctx)
 
-                    handler(zippable.zip(params, request))
+                      handler(zippable.zip(params, request))
+                  }
                 }
-              }
-            rpm.aspect.applyHandlerContext(
-              Handler.fromFunctionHandler[(rpm.Context, Request)] { case (_, req) =>
-                paramHandler.mapErrorCauseZIO(f(req, _))
-              },
-            )
-          }
+              rpm.aspect.applyHandlerContext(
+                Handler.fromFunctionHandler[(rpm.Context, Request)] { case (_, req) =>
+                  paramHandler.mapErrorCauseZIO(f(req, _))
+                },
+              )
+            }
         }
 
         Handled(rpm.routePattern, handler2, location)
@@ -325,7 +333,7 @@ sealed trait Route[-Env, +Err] { self =>
   final def sandbox(implicit trace: Trace): Route[Env, Nothing] =
     handleErrorCause(Response.fromCause(_, errorInBody))
 
-  final def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response]
+  def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response]
 
   final def toRoutes: Routes[Env, Err] = Routes(self)
 
@@ -351,7 +359,7 @@ object Route                   {
     new HandledConstructor[Env, Params](rpm)
 
   val notFound: Route[Any, Nothing] =
-    Handled(RoutePattern.any, Handler.fromFunction[RoutePattern[_]](_ => Handler.notFound), Trace.empty)
+    Handled(RoutePattern.any, _ => Handler.fromFunction[RoutePattern[_]](_ => Handler.notFound), Trace.empty)
 
   def route[Params](routePattern: RoutePattern[Params]): UnhandledConstructor[Any, Params] =
     route(Route.Builder(routePattern, HandlerAspect.identity))
