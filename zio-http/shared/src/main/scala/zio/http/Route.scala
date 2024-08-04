@@ -39,10 +39,10 @@ sealed trait Route[-Env, +Err] { self =>
    */
   def includeErrorDetails: Route[Env, Err] =
     self match {
-      case Provided(route, env)     => Provided(route.includeErrorDetails, env)
-      case Augmented(route, aspect) => Augmented(route.includeErrorDetails, aspect)
-      case r @ Handled(_, _, _)     => r.errorDetails(true)
-      case r @ Unhandled(_, _, _)   => r.errorDetails(true)
+      case Provided(route, env)      => Provided(route.includeErrorDetails, env)
+      case Augmented(route, aspect)  => Augmented(route.includeErrorDetails, aspect)
+      case r @ Handled(_, _, _)      => r.errorDetails(true)
+      case r @ Unhandled(_, _, _, _) => r.errorDetails(true)
     }
 
   /**
@@ -50,10 +50,10 @@ sealed trait Route[-Env, +Err] { self =>
    */
   def excludeErrorDetails: Route[Env, Err] =
     self match {
-      case Provided(route, env)     => Provided(route.excludeErrorDetails, env)
-      case Augmented(route, aspect) => Augmented(route.excludeErrorDetails, aspect)
-      case r @ Handled(_, _, _)     => r.errorDetails(false)
-      case r @ Unhandled(_, _, _)   => r.errorDetails(false)
+      case Provided(route, env)      => Provided(route.excludeErrorDetails, env)
+      case Augmented(route, aspect)  => Augmented(route.excludeErrorDetails, aspect)
+      case r @ Handled(_, _, _)      => r.errorDetails(false)
+      case r @ Unhandled(_, _, _, _) => r.errorDetails(false)
     }
 
   /**
@@ -498,7 +498,7 @@ object Route                   {
     routePattern: RoutePattern[_],
     handler: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]],
     location: Trace,
-  ) extends Route[Env, Nothing] {
+  ) extends Route[Env, Nothing] { self =>
 
     private var errorInBody = false
 
@@ -521,7 +521,7 @@ object Route                   {
 
     private var errorInBody = false
 
-    private[http] def errorDetails(v: Boolean): Route[Env, Nothing] = {
+    private[http] def errorDetails(v: Boolean): Route[Env, Err] = {
       errorInBody = v
       self
     }
