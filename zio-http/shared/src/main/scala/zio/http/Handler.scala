@@ -549,7 +549,7 @@ sealed trait Handler[-R, +Err, -In, +Out] { self =>
     self(in)
 
   final def sandbox(implicit trace: Trace): Handler[R, Response, In, Out] =
-    self.mapErrorCause(Response.fromCause(_, true))
+    self.mapErrorCause(Response.fromCause(_))
 
   final def sandbox(errorInBody: Boolean)(implicit trace: Trace): Handler[R, Response, In, Out] =
     self.mapErrorCause(Response.fromCause(_, errorInBody))

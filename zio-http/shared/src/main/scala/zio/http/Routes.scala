@@ -30,10 +30,10 @@ import zio.http.codec.PathCodec
  * HTTP applications can be installed into a [[zio.http.Server]], which is
  * capable of using them to serve requests.
  */
-final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]], private val errorInBody: Boolean = true) {
+final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]]) {
   self =>
   private lazy val _tree: Routes.Tree[_] =
-    Routes.Tree.fromRoutes(routes.asInstanceOf[Chunk[Route[Env, Response]]], errorInBody)
+    Routes.Tree.fromRoutes(routes.asInstanceOf[Chunk[Route[Env, Response]]])
 
   def @@[Env1 <: Env](aspect: Middleware[Env1]): Routes[Env1, Err] =
     aspect(self)
@@ -125,13 +125,13 @@ final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]], pri
    * Includes error details in the body of the response.
    */
   def includeErrorDetails: Routes[Env, Err] =
-    self.copy(errorInBody = true)
+    self.copy(routes = routes.map(_.includeErrorDetails))
 
   /**
    * Excludes error details from the body of the response.
    */
   def excludeErrorDetails: Routes[Env, Err] =
-    self.copy(errorInBody = false)
+    self.copy(routes = routes.map(_.excludeErrorDetails))
 
   /**
    * Handles all typed errors in the routes by converting them into responses,
@@ -241,7 +241,7 @@ final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]], pri
    * `includeErrorDetails.
    */
   def sandbox(implicit trace: Trace): Routes[Env, Nothing] =
-    Routes(routes.map(_.sandbox(errorInBody)))
+    Routes(routes.map(_.sandbox))
 
   /**
    * Returns a new HTTP application whose requests will be timed out after the
@@ -348,18 +348,18 @@ object Routes extends RoutesCompanionVersionSpecific {
     final def ++[Env1 <: Env](that: Tree[Env1]): Tree[Env1] =
       Tree(self.tree ++ that.tree)
 
-    final def add[Env1 <: Env](route: Route[Env1, Response], errorInBody: Boolean)(implicit
+    final def add[Env1 <: Env](route: Route[Env1, Response])(implicit
       trace: Trace,
     ): Tree[Env1] =
-      Tree(self.tree.addAll(route.routePattern.alternatives.map(alt => (alt, route.toHandler(errorInBody)))))
+      Tree(self.tree.addAll(route.routePattern.alternatives.map(alt => (alt, route.toHandler))))
 
-    final def addAll[Env1 <: Env](routes: Iterable[Route[Env1, Response]], errorInBody: Boolean)(implicit
+    final def addAll[Env1 <: Env](routes: Iterable[Route[Env1, Response]])(implicit
       trace: Trace,
     ): Tree[Env1] =
       // only change to flatMap when Scala 2.12 is dropped
       Tree(
         self.tree.addAll(
-          routes.map(r => r.routePattern.alternatives.map(alt => (alt, r.toHandler(errorInBody)))).flatten,
+          routes.map(r => r.routePattern.alternatives.map(alt => (alt, r.toHandler))).flatten,
         ),
       )
 
@@ -369,9 +369,9 @@ object Routes extends RoutesCompanionVersionSpecific {
   private[http] object Tree                                                                         {
     val empty: Tree[Any] = Tree(RoutePattern.Tree.empty)
 
-    def fromRoutes[Env](routes: Chunk[zio.http.Route[Env, Response]], errorInBody: Boolean)(implicit
+    def fromRoutes[Env](routes: Chunk[zio.http.Route[Env, Response]])(implicit
       trace: Trace,
     ): Tree[Env] =
-      empty.addAll(routes, errorInBody)
+      empty.addAll(routes)
   }
 }

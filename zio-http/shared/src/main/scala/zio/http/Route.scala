@@ -34,6 +34,24 @@ import zio.http.codec.PathCodec
 sealed trait Route[-Env, +Err] { self =>
   import Route.{Augmented, Handled, Provided, Unhandled}
 
+  private var errorInBody = false
+
+  /**
+   * Includes error details in the body of the response.
+   */
+  def includeErrorDetails: Route[Env, Err] = {
+    errorInBody = true
+    self
+  }
+
+  /**
+   * Excludes error details from the body of the response.
+   */
+  def excludeErrorDetails: Route[Env, Err] = {
+    errorInBody = false
+    self
+  }
+
   /**
    * Applies the route to the specified request. The route must be defined for
    * the request, or else this method will fail fatally. Note that you may only
@@ -305,22 +323,9 @@ sealed trait Route[-Env, +Err] { self =>
    * and attaching error details using the HTTP header `Warning`.
    */
   final def sandbox(implicit trace: Trace): Route[Env, Nothing] =
-    handleErrorCause(Response.fromCause(_))
-
-  /**
-   * Returns a route that automatically translates all failures into responses,
-   * using best-effort heuristics to determine the appropriate HTTP status code,
-   * and attaching error details using the HTTP header `Warning`.
-   */
-  final def sandbox(errorInBody: Boolean)(implicit trace: Trace): Route[Env, Nothing] =
     handleErrorCause(Response.fromCause(_, errorInBody))
 
-  final def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response] =
-    toHandler(false)
-
-  def toHandler(
-    errorInBody: Boolean,
-  )(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response]
+  final def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response]
 
   final def toRoutes: Routes[Env, Err] = Routes(self)
 
@@ -335,15 +340,11 @@ object Route                   {
     routePattern: RoutePattern[_],
   )(handler: Handler[Env, Response, Request, Response])(implicit trace: Trace): Route[Env, Nothing] = {
     // Sandbox before constructing:
-    Route.Handled(routePattern, Handler.fromFunction[RoutePattern[_]](_ => handler.sandbox), Trace.empty)
-  }
-
-  def handled[Env](
-    routePattern: RoutePattern[_],
-    errorInBody: Boolean,
-  )(handler: Handler[Env, Response, Request, Response])(implicit trace: Trace): Route[Env, Nothing] = {
-    // Sandbox before constructing:
-    Route.Handled(routePattern, Handler.fromFunction[RoutePattern[_]](_ => handler.sandbox(errorInBody)), Trace.empty)
+    Route.Handled(
+      routePattern,
+      errorInBody => Handler.fromFunction[RoutePattern[_]](_ => handler.sandbox(errorInBody)),
+      Trace.empty,
+    )
   }
 
   def handled[Params, Env](rpm: Route.Builder[Env, Params]): HandledConstructor[Env, Params] =
@@ -361,24 +362,24 @@ object Route                   {
   final class HandledConstructor[-Env, Params](val rpm: Route.Builder[Env, Params]) extends AnyVal {
     def apply[Env1 <: Env, In](
       handler: Handler[Env1, Response, In, Response],
-      errorInBody: Boolean,
     )(implicit zippable: Zippable.Out[Params, Request, In], trace: Trace): Route[Env1, Nothing] = {
-      val handler2: Handler[Any, Nothing, RoutePattern[_], Handler[Env1, Response, Request, Response]] = {
-        Handler.fromFunction[RoutePattern[_]] { pattern =>
-          val paramHandler =
-            Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
-              pattern.asInstanceOf[RoutePattern[rpm.PathInput]].decode(request.method, request.path) match {
-                case Left(error)  => ZIO.dieMessage(error)
-                case Right(value) =>
-                  val params = rpm.zippable.zip(value, ctx)
+      val handler2: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env1, Response, Request, Response]] = {
+        errorInBody =>
+          Handler.fromFunction[RoutePattern[_]] { pattern =>
+            val paramHandler =
+              Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
+                pattern.asInstanceOf[RoutePattern[rpm.PathInput]].decode(request.method, request.path) match {
+                  case Left(error)  => ZIO.dieMessage(error)
+                  case Right(value) =>
+                    val params = rpm.zippable.zip(value, ctx)
 
-                  handler(zippable.zip(params, request))
+                    handler(zippable.zip(params, request))
+                }
               }
-            }
 
-          // Sandbox before applying aspect:
-          rpm.aspect.applyHandlerContext(paramHandler.sandbox(errorInBody))
-        }
+            // Sandbox before applying aspect:
+            rpm.aspect.applyHandlerContext(paramHandler.sandbox(errorInBody))
+          }
       }
 
       Handled(rpm.routePattern, handler2, trace)
@@ -454,10 +455,8 @@ object Route                   {
 
     def routePattern: RoutePattern[_] = route.routePattern
 
-    override def toHandler(
-      errorInBody: Boolean,
-    )(implicit ev: Err <:< Response, trace: Trace): Handler[Any, Response, Request, Response] =
-      route.toHandler(errorInBody).provideEnvironment(env)
+    override def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[Any, Response, Request, Response] =
+      route.toHandler.provideEnvironment(env)
 
     override def toString() = s"Route.Provided(${route}, ${env})"
   }
@@ -470,23 +469,20 @@ object Route                   {
 
     def routePattern: RoutePattern[_] = route.routePattern
 
-    override def toHandler(
-      errorInBody: Boolean,
-    )(implicit ev: Err <:< Response, trace: Trace): Handler[OutEnv, Response, Request, Response] =
-      aspect(route.toHandler(errorInBody))
+    override def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[OutEnv, Response, Request, Response] =
+      aspect(route.toHandler)
 
     override def toString() = s"Route.Augmented(${route}, ${aspect})"
   }
 
   private final case class Handled[-Env](
     routePattern: RoutePattern[_],
-    handler: Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]],
+    handler: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env, Response, Request, Response]],
     location: Trace,
   ) extends Route[Env, Nothing] {
-    override def toHandler(
-      errorInBody: Boolean,
-    )(implicit ev: Nothing <:< Response, trace: Trace): Handler[Env, Response, Request, Response] =
-      Handler.fromZIO(handler(routePattern)).flatten
+
+    override def toHandler(implicit ev: Nothing <:< Response, trace: Trace): Handler[Env, Response, Request, Response] =
+      Handler.fromZIO(handler(errorInBody)(routePattern)).flatten
 
     override def toString() = s"Route.Handled(${routePattern}, ${location})"
   }
@@ -499,21 +495,18 @@ object Route                   {
 
     def routePattern = rpm.routePattern
 
-    override def toHandler(
-      errorInBody: Boolean,
-    )(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response] = {
-      convert(handler.asErrorType[Response], errorInBody)
+    override def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response] = {
+      convert(handler.asErrorType[Response])
     }
 
     override def toString() = s"Route.Unhandled(${routePattern}, ${location})"
 
     private def convert[Env1 <: Env](
       handler: Handler[Env1, Response, Input, Response],
-      errorInBody: Boolean,
     )(implicit trace: Trace): Handler[Env1, Response, Request, Response] = {
       implicit val z = zippable
 
-      Route.handled(rpm)(handler, errorInBody).toHandler
+      Route.handled(rpm)(handler).toHandler
     }
   }
 
