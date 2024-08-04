@@ -34,23 +34,27 @@ import zio.http.codec.PathCodec
 sealed trait Route[-Env, +Err] { self =>
   import Route.{Augmented, Handled, Provided, Unhandled}
 
-  protected var errorInBody = false
-
   /**
    * Includes error details in the body of the response.
    */
-  def includeErrorDetails: Route[Env, Err] = {
-    errorInBody = true
-    self
-  }
+  def includeErrorDetails: Route[Env, Err] =
+    self match {
+      case Provided(route, env)     => Provided(route.includeErrorDetails, env)
+      case Augmented(route, aspect) => Augmented(route.includeErrorDetails, aspect)
+      case r @ Handled(_, _, _)     => r.errorDetails(true)
+      case r @ Unhandled(_, _, _)   => r.errorDetails(true)
+    }
 
   /**
    * Excludes error details from the body of the response.
    */
-  def excludeErrorDetails: Route[Env, Err] = {
-    errorInBody = false
-    self
-  }
+  def excludeErrorDetails: Route[Env, Err] =
+    self match {
+      case Provided(route, env)     => Provided(route.excludeErrorDetails, env)
+      case Augmented(route, aspect) => Augmented(route.excludeErrorDetails, aspect)
+      case r @ Handled(_, _, _)     => r.errorDetails(false)
+      case r @ Unhandled(_, _, _)   => r.errorDetails(false)
+    }
 
   /**
    * Applies the route to the specified request. The route must be defined for
@@ -337,7 +341,7 @@ sealed trait Route[-Env, +Err] { self =>
    * and attaching error details using the HTTP header `Warning`.
    */
   final def sandbox(implicit trace: Trace): Route[Env, Nothing] =
-    handleErrorCause(Response.fromCause(_, errorInBody))
+    handleErrorCause(Response.fromCause(_))
 
   def toHandler(implicit ev: Err <:< Response, trace: Trace): Handler[Env, Response, Request, Response]
 
@@ -376,9 +380,10 @@ object Route                   {
   final class HandledConstructor[-Env, Params](val rpm: Route.Builder[Env, Params]) extends AnyVal {
     def apply[Env1 <: Env, In](
       handler: Handler[Env1, Response, In, Response],
+      errorInBody: Boolean,
     )(implicit zippable: Zippable.Out[Params, Request, In], trace: Trace): Route[Env1, Nothing] = {
       val handler2: Boolean => Handler[Any, Nothing, RoutePattern[_], Handler[Env1, Response, Request, Response]] = {
-        errorInBody =>
+        err =>
           Handler.fromFunction[RoutePattern[_]] { pattern =>
             val paramHandler =
               Handler.fromFunctionZIO[(rpm.Context, Request)] { case (ctx, request) =>
@@ -392,11 +397,11 @@ object Route                   {
               }
 
             // Sandbox before applying aspect:
-            rpm.aspect.applyHandlerContext(paramHandler.sandbox(errorInBody))
+            rpm.aspect.applyHandlerContext(paramHandler.sandbox(err))
           }
       }
 
-      Handled(rpm.routePattern, handler2, trace)
+      Handled(rpm.routePattern, handler2, trace).errorDetails(errorInBody)
     }
   }
 
@@ -495,6 +500,13 @@ object Route                   {
     location: Trace,
   ) extends Route[Env, Nothing] {
 
+    private var errorInBody = false
+
+    private[http] def errorDetails(v: Boolean): Route[Env, Nothing] = {
+      errorInBody = v
+      self
+    }
+
     override def toHandler(implicit ev: Nothing <:< Response, trace: Trace): Handler[Env, Response, Request, Response] =
       Handler.fromZIO(handler(errorInBody)(routePattern)).flatten
 
@@ -506,6 +518,13 @@ object Route                   {
     zippable: Zippable.Out[Params, Request, Input],
     location: Trace,
   ) extends Route[Env, Err] { self =>
+
+    private var errorInBody = false
+
+    private[http] def errorDetails(v: Boolean): Route[Env, Nothing] = {
+      errorInBody = v
+      self
+    }
 
     def routePattern = rpm.routePattern
 
@@ -520,7 +539,7 @@ object Route                   {
     )(implicit trace: Trace): Handler[Env1, Response, Request, Response] = {
       implicit val z = zippable
 
-      Route.handled(rpm)(handler).toHandler
+      Route.handled(rpm)(handler, errorInBody).toHandler
     }
   }
 
