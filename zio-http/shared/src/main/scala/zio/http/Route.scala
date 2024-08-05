@@ -57,6 +57,14 @@ sealed trait Route[-Env, +Err] { self =>
         Unhandled(rpm, handler, zippable, location, false)
     }
 
+  def errorState: Boolean =
+    self match {
+      case Provided(route, env)                             => route.errorState
+      case Augmented(route, aspect)                         => route.errorState
+      case Handled(routePattern, handler, location, err)    => err
+      case Unhandled(rpm, handler, zippable, location, err) => err
+    }
+
   /**
    * Applies the route to the specified request. The route must be defined for
    * the request, or else this method will fail fatally. Note that you may only
@@ -372,7 +380,7 @@ object Route                   {
       routePattern,
       errorInBody => Handler.fromFunction[RoutePattern[_]](_ => handler.sandbox(errorInBody)),
       Trace.empty,
-      true,
+      false,
     )
   }
 

@@ -20,7 +20,8 @@ object ErrorInBodySpec extends ZIOHttpSpec {
           url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
-        } yield content)(isEmptyString)
+        } yield content)(isEmptyString) &&
+        assertTrue(routes.routes.map(_.errorState) == Chunk(false))
       },
       test("include error in body") {
         val routes =
@@ -31,7 +32,8 @@ object ErrorInBodySpec extends ZIOHttpSpec {
           url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
-        } yield content)(not(isEmptyString))
+        } yield content)(not(isEmptyString)) &&
+        assertTrue(routes.routes.map(_.errorState) == Chunk(true))
       },
       test("include error in body2") {
         val routes =
@@ -42,7 +44,8 @@ object ErrorInBodySpec extends ZIOHttpSpec {
           url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
-        } yield content)(not(isEmptyString))
+        } yield content)(not(isEmptyString)) &&
+        assertTrue(routes.routes.map(_.errorState) == Chunk(true))
       },
       test("exclude error in body") {
         val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("Error")))
@@ -52,7 +55,8 @@ object ErrorInBodySpec extends ZIOHttpSpec {
           url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
           content <- body.asString
-        } yield content)(isEmptyString)
+        } yield content)(isEmptyString) &&
+        assertTrue(routes.routes.map(_.errorState) == Chunk(false))
       },
     ).provideSome[Server & Client](Scope.default)
       .provideShared(
