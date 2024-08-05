@@ -371,7 +371,7 @@ object Route                   {
       routePattern,
       errorInBody => Handler.fromFunction[RoutePattern[_]](_ => handler.sandbox(errorInBody)),
       Trace.empty,
-      false,
+      true,
     )
   }
 
