@@ -517,7 +517,7 @@ object Route                   {
   ) extends Route[Env, Nothing] { self =>
 
     override def toHandler(implicit ev: Nothing <:< Response, trace: Trace): Handler[Env, Response, Request, Response] =
-      Handler.fromZIO(handler(true)(routePattern)).flatten
+      Handler.fromZIO(handler(errorInBody)(routePattern)).flatten
 
     override def toString() = s"Route.Handled(${routePattern}, ${location})"
   }
