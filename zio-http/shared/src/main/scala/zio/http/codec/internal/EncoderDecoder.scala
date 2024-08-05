@@ -223,23 +223,23 @@ private[codec] object EncoderDecoder {
           val params = queryParams.queryParamsOrElse(query.name, Nil)
 
           if (params.isEmpty)
-          throw HttpCodecError.MissingQueryParam(query.name)
-        else if (
-          params == emptyStringChunk
-          && (query.hint == Query.QueryParamHint.Any || query.hint == Query.QueryParamHint.Many)
-        ) {
-          Chunk.empty
-        } else {
-          params.map { p =>
-            val decoded = query.codec.codec.decode(Chunk.fromArray(p.getBytes(Charsets.Utf8)))
-            decoded match {
-              case Left(error)  => throw HttpCodecError.MalformedQueryParam(query.name, error)
-              case Right(value) => value
+            throw HttpCodecError.MissingQueryParam(query.name)
+          else if (
+            params == emptyStringChunk
+            && (query.hint == Query.QueryParamHint.Any || query.hint == Query.QueryParamHint.Many)
+          ) {
+            Chunk.empty
+          } else {
+            params.map { p =>
+              val decoded = query.codec.codec.decode(Chunk.fromArray(p.getBytes(Charsets.Utf8)))
+              decoded match {
+                case Left(error)  => throw HttpCodecError.MalformedQueryParam(query.name, error)
+                case Right(value) => value
+              }
             }
+            val validationErrors = parsedParams.flatMap(p => query.codec.schema.validate(p)(query.codec.schema))
+            if (validationErrors.nonEmpty) throw HttpCodecError.InvalidEntity.wrap(validationErrors)
           }
-          val validationErrors = parsedParams.flatMap(p => query.codec.schema.validate(p)(query.codec.schema))
-          if (validationErrors.nonEmpty) throw HttpCodecError.InvalidEntity.wrap(validationErrors)
-        }
         },
       )
 
