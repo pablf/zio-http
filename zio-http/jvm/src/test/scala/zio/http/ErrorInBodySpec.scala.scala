@@ -23,9 +23,10 @@ object ErrorInBodySpec extends ZIOHttpSpec {
         } yield content)(isEmptyString)
       },
       test("include error in body") {
-        val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("Error")))
+        val routes =
+          Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("Error"))).includeErrorDetails
         assertZIO(for {
-          port   <- Server.install(routes.includeErrorDetails)
+          port   <- Server.install(routes)
           client <- ZIO.service[Client]
           url = URL.decode("http://localhost:%d/%s".format(port, Path.root / "test")).toOption.get
           body    <- client(Request(url = url)).map(_.body)
