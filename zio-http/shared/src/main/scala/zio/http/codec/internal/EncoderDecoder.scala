@@ -230,7 +230,7 @@ private[codec] object EncoderDecoder {
           ) {
             Chunk.empty
           } else {
-            params.map { p =>
+            val parsedParams     = params.map { p =>
               val decoded = query.codec.codec.decode(Chunk.fromArray(p.getBytes(Charsets.Utf8)))
               decoded match {
                 case Left(error)  => throw HttpCodecError.MalformedQueryParam(query.name, error)
@@ -239,6 +239,7 @@ private[codec] object EncoderDecoder {
             }
             val validationErrors = parsedParams.flatMap(p => query.codec.schema.validate(p)(query.codec.schema))
             if (validationErrors.nonEmpty) throw HttpCodecError.InvalidEntity.wrap(validationErrors)
+            parsedParams
           }
         },
       )
@@ -380,7 +381,7 @@ private[codec] object EncoderDecoder {
         (codec, input, queryParams) =>
           queryParams.addQueryParams(
             codec.name,
-            input.asInstanceOf[Chunk[Any]].map(in => codec.codec.codec.encode(in).asString),
+            input.asInstanceOf[Chunk[Any]].map(in => codec.erase.codec.codec.encode(in).asString),
           ),
       )
 
