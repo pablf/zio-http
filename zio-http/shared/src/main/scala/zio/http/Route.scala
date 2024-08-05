@@ -39,10 +39,10 @@ sealed trait Route[-Env, +Err] { self =>
    */
   def includeErrorDetails: Route[Env, Err] =
     self match {
-      case Provided(route, env)         => Provided(route.includeErrorDetails, env)
-      case Augmented(route, aspect)     => Augmented(route.includeErrorDetails, aspect)
-      case r @ Handled(_, _, _, _)      => r.copy(errorInBody = true)
-      case r @ Unhandled(_, _, _, _, _) => r.copy(errorInBody = true)
+      case Provided(route, env)                                     => Provided(route.includeErrorDetails, env)
+      case Augmented(route, aspect)                                 => Augmented(route.includeErrorDetails, aspect)
+      case Handled(routePattern, handler, location, _)              => Handled(routePattern, handler, location, true)
+      case Unhandled(rpm, handler, zippable, location, errorInBody) => Unhandled(rpm, handler, zippable, location, true)
     }
 
   /**
@@ -50,10 +50,11 @@ sealed trait Route[-Env, +Err] { self =>
    */
   def excludeErrorDetails: Route[Env, Err] =
     self match {
-      case Provided(route, env)         => Provided(route.excludeErrorDetails, env)
-      case Augmented(route, aspect)     => Augmented(route.excludeErrorDetails, aspect)
-      case r @ Handled(_, _, _, _)      => r.copy(errorInBody = false)
-      case r @ Unhandled(_, _, _, _, _) => r.copy(errorInBody = false)
+      case Provided(route, env)                                     => Provided(route.excludeErrorDetails, env)
+      case Augmented(route, aspect)                                 => Augmented(route.excludeErrorDetails, aspect)
+      case Handled(routePattern, handler, location, _)              => Handled(routePattern, handler, location, false)
+      case Unhandled(rpm, handler, zippable, location, errorInBody) =>
+        Unhandled(rpm, handler, zippable, location, false)
     }
 
   /**
