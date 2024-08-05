@@ -237,8 +237,9 @@ private[codec] object EncoderDecoder {
                 case Right(value) => value
               }
             }
+            val schema           = query.erase.codec.schema
             val validationErrors =
-              parsedParams.flatMap(p => query.erase.codec.schema.validate(p)(query.erase.codec.schema))
+              parsedParams.flatMap(p => schema.validate(p)(schema))
             if (validationErrors.nonEmpty) throw HttpCodecError.InvalidEntity.wrap(validationErrors)
             parsedParams
           }
