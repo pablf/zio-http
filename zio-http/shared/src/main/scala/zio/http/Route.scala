@@ -383,7 +383,7 @@ object Route                   {
       RoutePattern.any,
       _ => Handler.fromFunction[RoutePattern[_]](_ => Handler.notFound),
       Trace.empty,
-      errorInBody,
+      false,
     )
 
   def route[Params](routePattern: RoutePattern[Params]): UnhandledConstructor[Any, Params] =
