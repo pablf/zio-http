@@ -170,7 +170,7 @@ object NettyConnectionPool {
       cause match {
         case _: ReadTimeoutException =>
           nettyRuntime.run(ctx, () => {}) { ZIO.logDebug("ReadTimeoutException caught") }
-        case _                       => () // super.exceptionCaught(ctx, cause)
+        case _                       => super.exceptionCaught(ctx, cause)
       }
     }
   }

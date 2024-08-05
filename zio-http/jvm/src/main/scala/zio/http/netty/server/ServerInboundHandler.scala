@@ -120,11 +120,8 @@ private[zio] final case class ServerInboundHandler(
         cause match {
           case _: ReadTimeoutException =>
             ctx.close(): Unit
-          case t: Throwable            => {
-            attemptFastWrite(ctx, Response.fromThrowable(t, app.errorInBody))
-            ctx.close(): Unit
-            // super.exceptionCaught(ctx, t)
-          }
+          case _                       =>
+            super.exceptionCaught(ctx, t)
         }
     }
 
@@ -301,8 +298,7 @@ private[zio] final case class ServerInboundHandler(
 
   private def writeNotFound(ctx: ChannelHandlerContext, req: Request): Unit = {
     val response =
-      if (app.errorInBody) Response.notFound("uuu2")
-      else Response.notFound // Response.notFound(req.url.encode) else Response.notFound
+      if (app.errorInBody) Response.notFound(req.url.encode) else Response.notFound
     attemptFastWrite(ctx, response): Unit
   }
 
@@ -355,7 +351,7 @@ private[zio] final case class ServerInboundHandler(
     }.unit.orDie
 
   private def withDefaultErrorResponse(cause: Throwable): Response =
-    if (app.errorInBody) Response.internalServerError("uuu") else Response.internalServerError
+    if (app.errorInBody) Response.internalServerError(cause.getMessage) else Response.internalServerError
 }
 
 object ServerInboundHandler {

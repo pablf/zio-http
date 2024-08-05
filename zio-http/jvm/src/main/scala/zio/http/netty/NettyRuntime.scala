@@ -33,8 +33,8 @@ private[zio] final class NettyRuntime(zioRuntime: Runtime[Any]) {
     def onFailure(cause: Cause[Throwable], ctx: ChannelHandlerContext): Unit = {
       cause.failureOption.orElse(cause.dieOption) match {
         case None        => ()
-        case Some(error) => ()
-        // ctx.fireExceptionCaught(error)
+        case Some(error) =>
+          ctx.fireExceptionCaught(error)
       }
       if (ctx.channel().isOpen) ctx.close(): Unit
     }
