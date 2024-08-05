@@ -79,19 +79,15 @@ private[zio] final case class ServerInboundHandler(
         try {
           if (jReq.decoderResult().isFailure) {
             val throwable = jReq.decoderResult().cause()
-            attemptFastWrite(ctx, Response.fromThrowable(throwable, config.errorInBody))
+            attemptFastWrite(ctx, Response.fromThrowable(throwable, app.errorInBody))
             releaseRequest()
           } else {
-            val req = makeZioRequest(ctx, jReq)
-            try {
-              val exit = app(req)
-              if (attemptImmediateWrite(ctx, exit)) {
-                releaseRequest()
-              } else {
-                writeResponse(ctx, runtime, exit, req)(releaseRequest)
-              }
-            } catch {
-              case t: Throwable if t.getMessage.contains("WEIRDERROR") => ()
+            val req  = makeZioRequest(ctx, jReq)
+            val exit = app(req)
+            if (attemptImmediateWrite(ctx, exit)) {
+              releaseRequest()
+            } else {
+              writeResponse(ctx, runtime, exit, req)(releaseRequest)
             }
           }
         } finally {
@@ -125,7 +121,7 @@ private[zio] final case class ServerInboundHandler(
           case _: ReadTimeoutException =>
             ctx.close(): Unit
           case t: Throwable            => {
-            attemptFastWrite(ctx, Response.fromThrowable(t, config.errorInBody))
+            attemptFastWrite(ctx, Response.fromThrowable(t, app.errorInBody))
             ctx.close(): Unit
             // super.exceptionCaught(ctx, t)
           }
@@ -305,7 +301,7 @@ private[zio] final case class ServerInboundHandler(
 
   private def writeNotFound(ctx: ChannelHandlerContext, req: Request): Unit = {
     val response =
-      if (config.errorInBody) Response.notFound("uuu2")
+      if (app.errorInBody) Response.notFound("uuu2")
       else Response.notFound // Response.notFound(req.url.encode) else Response.notFound
     attemptFastWrite(ctx, response): Unit
   }
@@ -359,7 +355,7 @@ private[zio] final case class ServerInboundHandler(
     }.unit.orDie
 
   private def withDefaultErrorResponse(cause: Throwable): Response =
-    if (config.errorInBody) Response.internalServerError("uuu") else Response.internalServerError
+    if (app.errorInBody) Response.internalServerError("uuu") else Response.internalServerError
 }
 
 object ServerInboundHandler {

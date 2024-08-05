@@ -10,8 +10,8 @@ import zio.http.netty.NettyConfig
 
 object ErrorInBodySpec extends ZIOHttpSpec {
 
-  def notInBodySpec =
-    suite("ErrorNotInBodySpec")(
+  def spec =
+    suite("ErrorInBodySpec")(
       test("error not in body by default") {
         val routes = Routes(Method.GET / "test" -> Handler.ok.map(_ => throw new Throwable("Error")))
         assertZIO(for {
@@ -53,27 +53,5 @@ object ErrorInBodySpec extends ZIOHttpSpec {
         ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
         Client.default,
       ) @@ sequential @@ withLiveClock
-
-  /*def inBodySpec =
-    suite("ErrorInBodySpec") {
-      val tests = test("error in body") {
-        val res = routes.deploy.body.mapZIO(_.asString).run(path = Path.root / "test")
-        assertZIO(res)(not(isEmptyString))
-      }
-      ZIO.scoped(app.as(List(tests)))
-    }.provideSome[DynamicServer & Server & Client](Scope.default)
-      .provideShared(
-        ZLayer.succeed(Server.Config.default.errorInBody(true)),
-        DynamicServer.live,
-        Server.customized,
-        ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
-        Client.default,
-      ) @@ sequential @@ withLiveClock*/
-
-  override def spec =
-    suite("ErrorInBodySpec")(
-      notInBodySpec,
-      // inBodySpec,
-    ) @@ sequential @@ withLiveClock
 
 }

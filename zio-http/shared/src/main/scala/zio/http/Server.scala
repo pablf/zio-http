@@ -57,7 +57,6 @@ object Server extends ServerPlatformSpecific {
     gracefulShutdownTimeout: Duration,
     webSocketConfig: WebSocketConfig,
     idleTimeout: Option[Duration],
-    errorInBody: Boolean,
   ) {
     self =>
 
@@ -93,11 +92,6 @@ object Server extends ServerPlatformSpecific {
 
     /** Enables streaming request bodies */
     def enableRequestStreaming: Config = self.copy(requestStreaming = RequestStreaming.Enabled)
-
-    /**
-     * Configures ZIO-HTTP internal error's output through the Response's body
-     */
-    def errorInBody(enable: Boolean): Config = self.copy(errorInBody = enable)
 
     def gracefulShutdownTimeout(duration: Duration): Config = self.copy(gracefulShutdownTimeout = duration)
 
@@ -179,8 +173,7 @@ object Server extends ServerPlatformSpecific {
         zio.Config.int("max-header-size").withDefault(Config.default.maxHeaderSize) ++
         zio.Config.boolean("log-warning-on-fatal-error").withDefault(Config.default.logWarningOnFatalError) ++
         zio.Config.duration("graceful-shutdown-timeout").withDefault(Config.default.gracefulShutdownTimeout) ++
-        zio.Config.duration("idle-timeout").optional.withDefault(Config.default.idleTimeout) ++
-        zio.Config.boolean("error-in-body").withDefault(Config.default.errorInBody)
+        zio.Config.duration("idle-timeout").optional.withDefault(Config.default.idleTimeout)
     }.map {
       case (
             sslConfig,
@@ -196,7 +189,6 @@ object Server extends ServerPlatformSpecific {
             logWarningOnFatalError,
             gracefulShutdownTimeout,
             idleTimeout,
-            errorInBody,
           ) =>
         default.copy(
           sslConfig = sslConfig,
@@ -211,7 +203,6 @@ object Server extends ServerPlatformSpecific {
           logWarningOnFatalError = logWarningOnFatalError,
           gracefulShutdownTimeout = gracefulShutdownTimeout,
           idleTimeout = idleTimeout,
-          errorInBody = errorInBody,
         )
     }
 
@@ -229,7 +220,6 @@ object Server extends ServerPlatformSpecific {
       gracefulShutdownTimeout = 10.seconds,
       webSocketConfig = WebSocketConfig.default,
       idleTimeout = None,
-      errorInBody = false,
     )
 
     final case class ResponseCompressionConfig(

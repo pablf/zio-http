@@ -390,7 +390,7 @@ object Route                   {
   val notFound: Route[Any, Nothing] =
     Handled(
       RoutePattern.any,
-      _ => Handler.fromFunction[RoutePattern[_]](_ => Handler.notFound),
+      errorInBody => Handler.fromFunction[RoutePattern[_]](_ => Handler.notFound(errorInBody)),
       Trace.empty,
       false,
     )

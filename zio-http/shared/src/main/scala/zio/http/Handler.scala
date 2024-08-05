@@ -979,6 +979,15 @@ object Handler extends HandlerPlatformSpecific with HandlerVersionSpecific {
         error(Status.NotFound, request.url.path.encode)
       }
 
+  /**
+   * Creates a handler that fails with a NotFound exception.
+   */
+  def notFound(errorInBody: Boolean): Handler[Any, Nothing, Request, Response] =
+    Handler
+      .fromFunctionHandler[Request] { request =>
+        error(Status.NotFound, if (errorInBody) request.url.path.encode else null)
+      }
+
   def notFound(message: => String): Handler[Any, Nothing, Any, Response] =
     error(Status.NotFound, message)
 

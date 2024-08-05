@@ -30,7 +30,10 @@ import zio.http.codec.PathCodec
  * HTTP applications can be installed into a [[zio.http.Server]], which is
  * capable of using them to serve requests.
  */
-final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]]) {
+final case class Routes[-Env, +Err](
+  routes: Chunk[zio.http.Route[Env, Err]],
+  private val _errorInBody: Boolean = false,
+) {
   self =>
   private lazy val _tree: Routes.Tree[_] =
     Routes.Tree.fromRoutes(routes.asInstanceOf[Chunk[Route[Env, Response]]])
@@ -125,13 +128,19 @@ final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]]) {
    * Includes error details in the body of the response.
    */
   def includeErrorDetails: Routes[Env, Err] =
-    self.copy(routes = routes.map(_.includeErrorDetails))
+    self.copy(routes = routes.map(_.includeErrorDetails), _errorInBody = true)
 
   /**
    * Excludes error details from the body of the response.
    */
   def excludeErrorDetails: Routes[Env, Err] =
-    self.copy(routes = routes.map(_.excludeErrorDetails))
+    self.copy(routes = routes.map(_.excludeErrorDetails), _errorInBody = false)
+
+  /**
+   * Excludes error details from the body of the response.
+   */
+  private[http] def errorInBody: Boolean =
+    _errorInBody
 
   /**
    * Handles all typed errors in the routes by converting them into responses,
@@ -259,7 +268,7 @@ final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]]) {
       .fromFunctionHandler[Request] { req =>
         val chunk = tree.get(req.method, req.path)
 
-        if (chunk.length == 0) Handler.notFound
+        if (chunk.length == 0) Handler.notFound(_errorInBody)
         else if (chunk.length == 1) chunk(0)
         else {
           // TODO: Support precomputed fallback among all chunk elements:
