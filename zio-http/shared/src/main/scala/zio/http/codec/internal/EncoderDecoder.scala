@@ -220,7 +220,7 @@ private[codec] object EncoderDecoder {
         flattened.query,
         inputs,
         (codec, queryParams) => {
-          val query = codec.erase
+          val query      = codec.erase
           val isOptional = query.isOptional
           query.queryType match {
             case QueryType.Primitive(name, BinaryCodecWithSchema(codec, schema))                                   =>
