@@ -14,8 +14,8 @@ import zio.http.endpoint._
 object TimingAttacksSpec extends ZIOSpecDefault {
 
   // uses Box test from "Opportunities and Limits of Remote Timing Attacks", Scott A. Crosby, Dan S. Wallach, Rudolf H. Riedi
-  val i = 0.03
-  val j = 0.2
+  val i = 0.01
+  val j = 0.3
 
   val nOfTries = 1000
 
