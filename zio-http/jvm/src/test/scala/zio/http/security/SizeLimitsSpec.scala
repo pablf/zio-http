@@ -145,9 +145,9 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       },
       test("infinite multi-part form") {
         testLimit0[Form](
-          3,
-          5,
-          Form(Chunk.fill(10)(FormField.Simple("n", "A"))),
+          13,
+          13,
+          Form(Chunk.empty),
           size => (_ + FormField.Simple(size.toString, "A")),
           port => form => Request.post(s"http://localhost:$port", Body.fromMultipartForm(form, Boundary("-"))),
           Status.RequestEntityTooLarge,
