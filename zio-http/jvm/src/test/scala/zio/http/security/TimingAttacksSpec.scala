@@ -189,5 +189,5 @@ object TimingAttacksSpec extends ZIOSpecDefault {
       val sameLength = zio.Config.Secret("some-secrez" * 1000)
       assertZIO(boxTest(ZIO.attempt { secret equals secret }, ZIO.attempt { secret equals sameLength }))(equalTo(true))
     },
-  ) @@ TestAspect.sequential @@ TestAspect.withLiveClock @@ TestAspect.flaky(10)
+  ) @@ TestAspect.sequential @@ TestAspect.withLiveClock @@ TestAspect.flaky
 }
