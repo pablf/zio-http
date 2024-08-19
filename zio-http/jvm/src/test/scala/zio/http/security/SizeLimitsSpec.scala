@@ -63,7 +63,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
         info   <-
           if (expected == status) loop(size + 1, lstTestSize, inc(size)(content), f, expected)
           else if (size >= lstTestSize - 2) // adding margin for differences in scala 2 and scala 3
-            ZIO.succeed((size, expected, Some(content)))
+            ZIO.succeed(((size, expected), Some(content)))
           else ZIO.succeed(((size, status), None))
       } yield info
 
