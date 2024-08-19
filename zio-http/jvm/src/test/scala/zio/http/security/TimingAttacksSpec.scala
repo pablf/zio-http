@@ -1,9 +1,9 @@
 package zio.http.security
 
-import zio._
 import zio.Config.Secret
-import zio.test._
+import zio._
 import zio.test.Assertion._
+import zio.test._
 
 import zio.schema._
 

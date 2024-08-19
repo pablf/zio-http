@@ -1,18 +1,18 @@
 package zio.http.security
 
+import java.io.File
+import java.nio.file
+import java.nio.file.{Files, Path => JPath, Paths}
+
 import zio._
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 import zio.schema._
 
 import zio.http._
 import zio.http.codec._
 import zio.http.endpoint._
-import java.nio.file
-import java.io.File
-import java.nio.file.{Files, Paths}
-import java.nio.file.{Path => JPath}
 
 object StaticFileServingSpec extends ZIOSpecDefault {
   // tests Middleware.serveResources, Middleware.serveDirectory

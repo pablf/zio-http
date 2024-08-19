@@ -1,7 +1,6 @@
 package zio.http.security
 
 import zio._
-
 import zio.test._
 
 import zio.schema._

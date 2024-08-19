@@ -1,16 +1,16 @@
 package zio.http.security
 
-import zio.test._
+import zio._
+import zio.metrics._
 import zio.test.Assertion._
+import zio.test._
 
 import zio.schema._
 
-import zio._
 import zio.http._
 import zio.http.codec._
 import zio.http.endpoint._
 import zio.http.netty.NettyConfig
-import zio.metrics._
 
 /*
   Exposed limits through:
