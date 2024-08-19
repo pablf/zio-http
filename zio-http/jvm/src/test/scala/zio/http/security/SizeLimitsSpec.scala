@@ -23,17 +23,6 @@ import zio.http.netty.NettyConfig
  */
 object SizeLimitsSpec extends ZIOHttpSpec {
 
-  def memoryUsage: ZIO[Any, Nothing, Double] = {
-    import java.lang.Runtime._
-    ZIO
-      .succeed(getRuntime.totalMemory() - getRuntime.freeMemory())
-      .map(_ / (1024.0 * 1024.0)) @@ Metric.gauge("memory_usage")
-  }
-
-  val metrics = Routes(Method.GET / "metrics" -> handler {
-    memoryUsage.map(d => Response.text(d.toString))
-  })
-
   val routes = Routes(
     Method.GET / PathCodec.trailing  -> Handler.ok,
     Method.POST / PathCodec.trailing -> Handler.ok,
@@ -73,6 +62,8 @@ object SizeLimitsSpec extends ZIOHttpSpec {
         status <- ZIO.scoped { client(request).map(_.status) }
         info   <-
           if (expected == status) loop(size + 1, lstTestSize, inc(size)(content), f, expected)
+          else if (size >= lstTestSize - 2) // adding margin for differences in scala 2 and scala 3
+            ZIO.succeed((size, expected, Some(content)))
           else ZIO.succeed(((size, status), None))
       } yield info
 
@@ -82,7 +73,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       out1 <- loop(0, maxSize, fstContent, mkRequest, Status.Ok)
       (info1, c) = out1
       out2 <- c match {
-        case Some(content) => loop(maxSize, lstTestSize, content, mkRequest, badStatus)
+        case Some(content) => loop(info1._1, lstTestSize, content, mkRequest, badStatus)
         case None          => ZIO.succeed(((0, Status.Ok), None))
       }
       (info2, _) = out2
