@@ -49,14 +49,14 @@ object ExceptionSpec extends ZIOSpecDefault {
         response <- route.toRoutes.runZIO(request).map(_.headers.toString)
       } yield assertTrue(!response.contains("Exception in thread"))
     } @@ TestAspect.failing,
-    test("Throw inside handle doesn't leak stacktrace2") {
+    test("Throw inside handle doesn't leak stacktrace") {
       for {
         port     <- Server.install(routesError)
         client   <- ZIO.service[Client]
         response <- client(Request.get(s"http://localhost:$port/error")).map(_.headers.toString)
       } yield assertTrue(!response.contains("Exception in thread"))
     },
-    test("Die handle doesn't leak stacktrace2") {
+    test("Die handle doesn't leak stacktrace") {
       for {
         port     <- Server.install(routesDie)
         client   <- ZIO.service[Client]
