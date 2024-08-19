@@ -163,7 +163,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       ),
       ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
       Client.live,
-      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000).disabledConnectionPool),
+      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000)),
       DnsResolver.default,
     ),
     suite("testing default limits")(
@@ -234,7 +234,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       Server.customized,
       ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
       Client.live,
-      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000).disabledConnectionPool),
+      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000)),
       DnsResolver.default,
     ),
   ) @@ TestAspect.sequential @@ TestAspect.withLiveClock
