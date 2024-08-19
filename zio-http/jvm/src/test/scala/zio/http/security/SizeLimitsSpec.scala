@@ -92,7 +92,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
   }
 
   def testLimit(size: Int, maxSize: Int, lstTestSize: Int, mkRequest0: Int => String => Request, badStatus: Status) =
-    testLimit0(maxSize, lstTestSize, "A" * size, n => (_ ++ "A"), mkRequest0, badStatus)
+    testLimit0[String](maxSize, lstTestSize, "A" * size, n => (_ ++ "A"), mkRequest0, badStatus)
   val spec: Spec[TestEnvironment with Scope, Any] = suite("OutOfMemorySpec")(
     suite("limits are configurable")(
       test("infinite segment url") {
@@ -107,7 +107,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       },
       test("infinite number of small segments url") {
         val fstUrl = List.fill(400)("A").mkString("/")
-        testLimit0(
+        testLimit0[String](
           94,
           200,
           fstUrl,
@@ -128,7 +128,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       },
       test("infinite small headers") {
         val n = 30
-        testLimit0(
+        testLimit0[List[Header.Custom]](
           118,
           200,
           (0 until n).toList.map(s => Header.Custom(s"Header$s", "A")),
@@ -147,7 +147,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
         )
       },
       test("infinite multi-part form") {
-        testLimit0(
+        testLimit0[Form](
           13,
           18,
           Form(Chunk.empty),
@@ -182,7 +182,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       },
       test("infinite number of small segments url") {
         val fstUrl = List.fill(1500)("A").mkString("/")
-        testLimit0(
+        testLimit0[String](
           542,
           800,
           fstUrl,
@@ -203,7 +203,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       },
       test("infinite small headers") {
         val n = 450
-        testLimit0(
+        testLimit0[List[Header.Custom]](
           489,
           800,
           (0 until n).toList.map(s => Header.Custom(s"Header$s", "A")),
@@ -223,7 +223,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       },
       test("infinite multi-part form") {
         val initValue = 1300
-        testLimit0(
+        testLimit0[Form](
           13,
           20,
           Form(Chunk.fill(initValue)(FormField.Simple("n", "A"))),

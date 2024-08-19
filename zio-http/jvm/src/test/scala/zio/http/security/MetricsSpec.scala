@@ -80,21 +80,21 @@ object MetricsSpec extends ZIOHttpSpec {
   }
 
   val spec: Spec[TestEnvironment with Scope, Any] = suite("MetricsSpec")(
-    testMetrics(
+    testMetrics[String](
       "infinite url",
       2000,
       "A" * 3000,
       _ ++ "A",
       port => path => Request.get(s"http://localhost:$port/$path"),
     ),
-    testMetrics(
+    testMetrics[String](
       "infinite small segments url",
       1000,
       "/A" * 1500,
       _ ++ "/A",
       port => path => Request.get(s"http://localhost:$port$path"),
     ),
-    testMetrics(
+    testMetrics[String](
       "infinite header",
       2000,
       "A" * 7000,
@@ -108,7 +108,7 @@ object MetricsSpec extends ZIOHttpSpec {
       (l: List[Header.Custom]) => Header.Custom(l.head.customName.toString ++ "A", "A") :: l,
       port => headers => Request.get(s"http://localhost:$port").addHeaders(Headers(headers: _*)),
     ),
-    testMetrics(
+    testMetrics[String](
       "infinite body",
       10,
       "A" * (1023 * 100),
