@@ -19,9 +19,7 @@ import zio.http.netty.NettyConfig
     Server.Config.disableRequestStreaming (Body size),
   Tests
     - limits on url length, header length and body size are configurable
-    - default limits are safe (netty default)
-    - memory usage within default limits
-    - memory usage when using higher limits
+    - default limits are safe (they are Netty's default)
  */
 object SizeLimitsSpec extends ZIOHttpSpec {
 
@@ -50,7 +48,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
   val DEFAULT_CONTENT_SIZE = 1024 * 100
 
   /*
-    Checks that for `A` with size until `maxSize`, server responds with `Status.Ok` and `badStatus` otherwise.
+    Checks that for `A` with size until `maxSize`, server responds with `Status.Ok` and `badStatus` after it.
    */
   def testLimit0[A](
     maxSize: Int,

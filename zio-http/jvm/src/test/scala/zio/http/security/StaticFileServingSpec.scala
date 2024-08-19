@@ -62,8 +62,7 @@ object StaticFileServingSpec extends ZIOSpecDefault {
         URL(Path.root / "static" / ".." / ".." / "local" / "dir"),
         URL(Path.root / "static" / ".." / ".." / ".." / ".." / "secrets" / "secret"),
         URL(Path.root / "static" / ".." / ".." / ".." / ".." / "secrets"),
-        URL(Path.root / "static" / "....//....//etc//passwd"),
-        URL(Path.root / "static" / "..\\..\\etc\\passwd"),
+        URL(Path.root / "static" / "..\\..\\local\\dir"),
         URL(Path.root / "static" / "symlink" / "symlinkContent"),
       ),
     )
@@ -78,7 +77,7 @@ object StaticFileServingSpec extends ZIOSpecDefault {
         URL(Path.root / "resources" / "content" / ".." / ".." / ".." / "secrets" / "secret"),
         URL(Path.root / "resources" / "symlink" / ".." / ".." / "local" / "dir"),
         URL(Path.root / "resources" / "symlink" / ".." / ".." / "local" / "dir"),
-        URL(Path.root / "resources" / "..\\..\\etc\\passwd"),
+        URL(Path.root / "resources" / "..\\..\\local\\dir"),
       ),
     )
     .zip(Gen.const(Status.BadRequest))

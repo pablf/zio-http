@@ -13,11 +13,8 @@ import zio.http.endpoint._
 import zio.http.netty.NettyConfig
 
 /*
-  Tests
-    - limits on url length, header length and body size are configurable
-    - default limits are safe (netty default)
-    - memory usage within default limits
-    - memory usage when using higher limits
+  Tests `Middleware.metrics` interaction with limits on request size.
+  `Middleware.metrics` only registers requests passing Netty's filter.
  */
 object MetricsSpec extends ZIOHttpSpec {
 
