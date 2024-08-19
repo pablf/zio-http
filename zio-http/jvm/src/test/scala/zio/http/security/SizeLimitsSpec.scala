@@ -145,9 +145,9 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       },
       test("infinite multi-part form") {
         testLimit0[Form](
-          13,
-          15,
-          Form(Chunk.empty),
+          3,
+          5,
+          Form(Chunk.fill(10)(FormField.Simple("n", "A"))),
           size => (_ + FormField.Simple(size.toString, "A")),
           port => form => Request.post(s"http://localhost:$port", Body.fromMultipartForm(form, Boundary("-"))),
           Status.RequestEntityTooLarge,
@@ -163,7 +163,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       ),
       ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
       Client.live,
-      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000)),
+      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000).disabledConnectionPool),
       DnsResolver.default,
     ),
     suite("testing default limits")(
@@ -234,7 +234,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       Server.customized,
       ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
       Client.live,
-      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000)),
+      ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000).disabledConnectionPool),
       DnsResolver.default,
     ),
   ) @@ TestAspect.sequential @@ TestAspect.withLiveClock
