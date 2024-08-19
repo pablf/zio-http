@@ -88,8 +88,13 @@ object SizeLimitsSpec extends ZIOHttpSpec {
         case None          => ZIO.succeed(((0, Status.Ok), None))
       }
       (info2, _) = out2
-    } yield assertTrue((info1._1, info1._2) == (maxSize, Status.Ok)) && assertTrue(
-      (info2._1, info2._2) == (lstTestSize, badStatus),
+      (lstWorkingSize1, lstStatus1) = info1
+      (lstWorkingSize2, lstStatus2) = info2
+    } yield assertTrue(
+      lstWorkingSize1 == maxSize,
+      lstStatus1 == Status.Ok,
+      lstWorkingSize2 == lstTestSize,
+      lstStatus2 == badStatus,
     )
   }
 
