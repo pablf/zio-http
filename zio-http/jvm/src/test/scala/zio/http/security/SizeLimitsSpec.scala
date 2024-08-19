@@ -88,7 +88,9 @@ object SizeLimitsSpec extends ZIOHttpSpec {
         case None          => ZIO.succeed(((0, Status.Ok), None))
       }
       (info2, _) = out2
-    } yield assertTrue(info1 == (maxSize, Status.Ok)) && assertTrue(info2 == (lstTestSize, badStatus))
+    } yield assertTrue((info1._1, info1._2) == (maxSize, Status.Ok)) && assertTrue(
+      (info2._1, info2._2) == (lstTestSize, badStatus),
+    )
   }
 
   def testLimit(size: Int, maxSize: Int, lstTestSize: Int, mkRequest0: Int => String => Request, badStatus: Status) =
