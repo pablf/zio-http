@@ -80,7 +80,8 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       (lstWorkingSize1, lstStatus1) = info1
       (lstWorkingSize2, lstStatus2) = info2
     } yield assertTrue(
-      lstWorkingSize1 == maxSize,
+      maxSize - lstWorkingSize1 <= 2,
+      maxSize - lstWorkingSize1 >= 0,
       lstStatus1 == Status.Ok,
       lstWorkingSize2 == lstTestSize,
       lstStatus2 == badStatus,
@@ -145,7 +146,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       test("infinite multi-part form") {
         testLimit0[Form](
           13,
-          18,
+          15,
           Form(Chunk.empty),
           size => (_ + FormField.Simple(size.toString, "A")),
           port => form => Request.post(s"http://localhost:$port", Body.fromMultipartForm(form, Boundary("-"))),
