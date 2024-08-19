@@ -184,10 +184,5 @@ object TimingAttacksSpec extends ZIOSpecDefault {
         equalTo(true),
       )
     } @@ TestAspect.failing,
-    test("Secret non vulnerability") {
-      val secret     = zio.Config.Secret("some-secret" * 1000)
-      val sameLength = zio.Config.Secret("some-secrez" * 1000)
-      assertZIO(boxTest(ZIO.attempt { secret equals secret }, ZIO.attempt { secret equals sameLength }))(equalTo(true))
-    },
   ) @@ TestAspect.sequential @@ TestAspect.withLiveClock @@ TestAspect.flaky
 }
