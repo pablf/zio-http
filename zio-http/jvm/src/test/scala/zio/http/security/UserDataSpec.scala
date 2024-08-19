@@ -43,7 +43,7 @@ object UserDataSpec extends ZIOSpecDefault {
       // this is not a bug but could be a vulnerability used wrong
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
         val endpoint = Endpoint(Method.GET / "test")
-          .query(QueryCodec.query("data"))
+          .query(HttpCodec.query[String]("data"))
           .out[String]
         val route    = endpoint.implementHandler(Handler.fromFunction { case (s: String) =>
           // writeToServer or other actions
@@ -75,7 +75,7 @@ object UserDataSpec extends ZIOSpecDefault {
     test("Header injection") {
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
         val endpoint = Endpoint(Method.GET / "test")
-          .query(QueryCodec.query("data"))
+          .query(HttpCodec.query[String]("data"))
           .out[Dom]
         val route    = endpoint.implementHandler(Handler.fromFunction { case (s: String) => f(s) })
         val request  =
@@ -88,6 +88,22 @@ object UserDataSpec extends ZIOSpecDefault {
         } yield assertTrue(body.contains(expectedResponse))
       }
     },
+    test("Header injection DOM") {
+      check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
+        val endpoint = Endpoint(Method.GET / "test")
+          .query(HttpCodec.query[Dom]("data"))
+          .out[Dom]
+        val route    = endpoint.implementHandler(Handler.fromFunction { case s => s })
+        val request  =
+          Request
+            .get(URL(Path.root / "test", queryParams = QueryParams(("data", msg))))
+            .addHeader(Header.Accept(mediaType))
+        for {
+          response <- route.toRoutes.runZIO(request)
+          body     <- response.body.asString
+        } yield assertTrue(body.contains(expectedResponse))
+      }
+    } @@ TestAspect.failing,
     test("Path injection") {
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
         val request = Request.get(URL(Path.root / "test" / msg)).addHeader(Header.Accept(mediaType))
