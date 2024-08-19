@@ -12,12 +12,12 @@ import zio.http.endpoint._
 import zio.http.netty.NettyConfig
 import zio.metrics._
 
-/* 
+/*
   Exposed limits through:
     Server.Config.maxInitialLineLength (URI)
     Server.Config.maxHeaderSize (Headers)
     Server.Config.disableRequestStreaming (Body size),
-  Tests 
+  Tests
     - limits on url length, header length and body size are configurable
     - default limits are safe (netty default)
     - memory usage within default limits
@@ -36,11 +36,10 @@ object SizeLimitsSpec extends ZIOHttpSpec {
     memoryUsage.map(d => Response.text(d.toString))
   })
 
-  val routes            = Routes(
-    Method.GET / PathCodec.trailing -> Handler.ok,
+  val routes = Routes(
+    Method.GET / PathCodec.trailing  -> Handler.ok,
     Method.POST / PathCodec.trailing -> Handler.ok,
-    )
-
+  )
 
   val CUSTOM_URL_SIZE     = 1000
   val CUSTOM_HEADER_SIZE  = 1000
@@ -48,58 +47,114 @@ object SizeLimitsSpec extends ZIOHttpSpec {
 
   val DEFAULT_URL_SIZE     = 4096
   val DEFAULT_HEADER_SIZE  = 8192
-  val DEFAULT_CONTENT_SIZE = 1024*100
+  val DEFAULT_CONTENT_SIZE = 1024 * 100
 
-  /* 
+  /*
     Checks that for `A` with size until `maxSize`, server responds with `Status.Ok` and `badStatus` otherwise.
    */
-  def testLimit0[A](maxSize: Int, lstTestSize: Int, fstContent: A, inc: Int => A => A,  mkRequest0: Int => A => Request, badStatus: Status) = {
-    def loop(size: Int, lstTestSize: Int, content: A, f: A => Request, expected: Status): ZIO[Client, Throwable, ((Int, Status), Option[A])] = if(size >= lstTestSize) ZIO.succeed(((lstTestSize, expected), Some(content))) else for {
-      client <- ZIO.service[Client]
-      request = f(content)
-      status <- ZIO.scoped {client(request).map(_.status)}
-      info <- if(expected == status) loop(size+1, lstTestSize, inc(size)(content), f, expected) else ZIO.succeed(((size, status), None))
-    } yield info
+  def testLimit0[A](
+    maxSize: Int,
+    lstTestSize: Int,
+    fstContent: A,
+    inc: Int => A => A,
+    mkRequest0: Int => A => Request,
+    badStatus: Status,
+  ) = {
+    def loop(
+      size: Int,
+      lstTestSize: Int,
+      content: A,
+      f: A => Request,
+      expected: Status,
+    ): ZIO[Client, Throwable, ((Int, Status), Option[A])] = if (size >= lstTestSize)
+      ZIO.succeed(((lstTestSize, expected), Some(content)))
+    else
+      for {
+        client <- ZIO.service[Client]
+        request = f(content)
+        status <- ZIO.scoped { client(request).map(_.status) }
+        info   <-
+          if (expected == status) loop(size + 1, lstTestSize, inc(size)(content), f, expected)
+          else ZIO.succeed(((size, status), None))
+      } yield info
 
     for {
-        port <- Server.install(routes)
-        mkRequest = mkRequest0(port)
-        out1 <- loop(0, maxSize, fstContent, mkRequest, Status.Ok)
-        (info1, c) = out1
-        out2 <- c match {
-          case Some(content) => loop(maxSize, lstTestSize, content, mkRequest, badStatus)
-          case None => ZIO.succeed(((0, Status.Ok), None))
-        }
-        (info2, _) = out2
-      } yield assertTrue(info1 == (maxSize, Status.Ok)) && assertTrue (info2 == (lstTestSize, badStatus))
+      port <- Server.install(routes)
+      mkRequest = mkRequest0(port)
+      out1 <- loop(0, maxSize, fstContent, mkRequest, Status.Ok)
+      (info1, c) = out1
+      out2 <- c match {
+        case Some(content) => loop(maxSize, lstTestSize, content, mkRequest, badStatus)
+        case None          => ZIO.succeed(((0, Status.Ok), None))
+      }
+      (info2, _) = out2
+    } yield assertTrue(info1 == (maxSize, Status.Ok)) && assertTrue(info2 == (lstTestSize, badStatus))
   }
 
-
-  def testLimit(size: Int, maxSize: Int, lstTestSize: Int, mkRequest0: Int => String => Request, badStatus: Status) = 
-    testLimit0(maxSize, lstTestSize, "A"* size, n => (_ ++ "A"), mkRequest0, badStatus)
-  val spec: Spec[TestEnvironment with Scope, Any]  = suite("OutOfMemorySpec")(
+  def testLimit(size: Int, maxSize: Int, lstTestSize: Int, mkRequest0: Int => String => Request, badStatus: Status) =
+    testLimit0(maxSize, lstTestSize, "A" * size, n => (_ ++ "A"), mkRequest0, badStatus)
+  val spec: Spec[TestEnvironment with Scope, Any] = suite("OutOfMemorySpec")(
     suite("limits are configurable")(
       test("infinite segment url") {
         val urlSize = CUSTOM_URL_SIZE - 113
-        testLimit(urlSize, 100, 200, port => (path => Request.get(s"http://localhost:$port/$path")), Status.InternalServerError)
+        testLimit(
+          urlSize,
+          100,
+          200,
+          port => path => Request.get(s"http://localhost:$port/$path"),
+          Status.InternalServerError,
+        )
       },
       test("infinite number of small segments url") {
         val fstUrl = List.fill(400)("A").mkString("/")
-        testLimit0(94, 200, fstUrl, _ => (_ ++ "/A"), port => (path => Request.get(s"http://localhost:$port/$path")), Status.InternalServerError)
+        testLimit0(
+          94,
+          200,
+          fstUrl,
+          _ => (_ ++ "/A"),
+          port => path => Request.get(s"http://localhost:$port/$path"),
+          Status.InternalServerError,
+        )
       },
       test("infinite header") {
         val headerSize = CUSTOM_HEADER_SIZE - 186
-        testLimit(headerSize, 100, 200, port => (header => Request.get(s"http://localhost:$port").addHeader(Header.Custom("n", header))), Status.InternalServerError)
+        testLimit(
+          headerSize,
+          100,
+          200,
+          port => header => Request.get(s"http://localhost:$port").addHeader(Header.Custom("n", header)),
+          Status.InternalServerError,
+        )
       },
       test("infinite small headers") {
         val n = 30
-        testLimit0(118,200, (0 until n).toList.map(s =>(Header.Custom(s"Header$s", "A"))), size => (_.+:(Header.Custom(size.toString, "A"))), port => (headers => Request.get(s"http://localhost:$port").addHeaders(Headers(headers:_*))), Status.InternalServerError)
+        testLimit0(
+          118,
+          200,
+          (0 until n).toList.map(s => Header.Custom(s"Header$s", "A")),
+          size => (_.+:(Header.Custom(size.toString, "A"))),
+          port => headers => Request.get(s"http://localhost:$port").addHeaders(Headers(headers: _*)),
+          Status.InternalServerError,
+        )
       },
       test("infinite body") {
-        testLimit(CUSTOM_CONTENT_SIZE-100, 101, 200, port => (body => Request.post(s"http://localhost:$port", Body.fromString(body))), Status.RequestEntityTooLarge)
+        testLimit(
+          CUSTOM_CONTENT_SIZE - 100,
+          101,
+          200,
+          port => body => Request.post(s"http://localhost:$port", Body.fromString(body)),
+          Status.RequestEntityTooLarge,
+        )
       },
       test("infinite multi-part form") {
-        testLimit0(13, 18, Form(Chunk.empty), size => (_ + FormField.Simple(size.toString, "A")), port => (form => Request.post(s"http://localhost:$port", Body.fromMultipartForm(form, Boundary("-")))), Status.RequestEntityTooLarge)
+        testLimit0(
+          13,
+          18,
+          Form(Chunk.empty),
+          size => (_ + FormField.Simple(size.toString, "A")),
+          port => form => Request.post(s"http://localhost:$port", Body.fromMultipartForm(form, Boundary("-"))),
+          Status.RequestEntityTooLarge,
+        )
       },
     ).provide(
       Server.customized,
@@ -112,31 +167,70 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
       Client.live,
       ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000).disabledConnectionPool),
-     DnsResolver.default,
+      DnsResolver.default,
     ),
     suite("testing default limits")(
       test("infinite segment url") {
         val urlSize = DEFAULT_URL_SIZE - 113
-        testLimit(urlSize, 100, 200, port => (path => Request.get(s"http://localhost:$port/$path")), Status.InternalServerError)
+        testLimit(
+          urlSize,
+          100,
+          200,
+          port => path => Request.get(s"http://localhost:$port/$path"),
+          Status.InternalServerError,
+        )
       },
       test("infinite number of small segments url") {
         val fstUrl = List.fill(1500)("A").mkString("/")
-        testLimit0(542, 800, fstUrl, _ => (_ ++ "/A"), port => (path => Request.get(s"http://localhost:$port/$path")), Status.InternalServerError)
+        testLimit0(
+          542,
+          800,
+          fstUrl,
+          _ => (_ ++ "/A"),
+          port => path => Request.get(s"http://localhost:$port/$path"),
+          Status.InternalServerError,
+        )
       },
       test("infinite header") {
         val headerSize = DEFAULT_HEADER_SIZE - 186
-        testLimit(headerSize, 100, 200, port => (header => Request.get(s"http://localhost:$port").addHeader(Header.Custom("n", header))), Status.InternalServerError)
+        testLimit(
+          headerSize,
+          100,
+          200,
+          port => header => Request.get(s"http://localhost:$port").addHeader(Header.Custom("n", header)),
+          Status.InternalServerError,
+        )
       },
       test("infinite small headers") {
         val n = 450
-        testLimit0(489, 800, (0 until n).toList.map(s =>(Header.Custom(s"Header$s", "A"))), size => (_.+:(Header.Custom(size.toString, "A"))), port => (headers => Request.get(s"http://localhost:$port").addHeaders(Headers(headers:_*))), Status.InternalServerError)
+        testLimit0(
+          489,
+          800,
+          (0 until n).toList.map(s => Header.Custom(s"Header$s", "A")),
+          size => (_.+:(Header.Custom(size.toString, "A"))),
+          port => headers => Request.get(s"http://localhost:$port").addHeaders(Headers(headers: _*)),
+          Status.InternalServerError,
+        )
       },
       test("infinite body") {
-        testLimit(DEFAULT_CONTENT_SIZE-100, 101, 200, port => (body => Request.post(s"http://localhost:$port", Body.fromString(body))), Status.RequestEntityTooLarge)
+        testLimit(
+          DEFAULT_CONTENT_SIZE - 100,
+          101,
+          200,
+          port => body => Request.post(s"http://localhost:$port", Body.fromString(body)),
+          Status.RequestEntityTooLarge,
+        )
       },
       test("infinite multi-part form") {
         val initValue = 1300
-        testLimit0(13, 20, Form(Chunk.fill(initValue)(FormField.Simple("n", "A"))), size => (_ + FormField.Simple(size.toString, "A")), port => (form => Request.post(s"http://localhost:$port", Body.fromMultipartForm(form, Boundary("-")))), Status.RequestEntityTooLarge)
+        testLimit0(
+          13,
+          20,
+          Form(Chunk.fill(initValue)(FormField.Simple("n", "A"))),
+          size => (_ + FormField.Simple(size.toString, "A")),
+          port => form => Request.post(s"http://localhost:$port", Body.fromMultipartForm(form, Boundary("-"))),
+          Status.RequestEntityTooLarge,
+        )
       },
     ).provide(
       ZLayer.succeed(Server.Config.default),
@@ -144,7 +238,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
       ZLayer.succeed(NettyConfig.defaultWithFastShutdown),
       Client.live,
       ZLayer.succeed(ZClient.Config.default.maxHeaderSize(15000).maxInitialLineLength(15000).disabledConnectionPool),
-     DnsResolver.default,
+      DnsResolver.default,
     ),
   ) @@ TestAspect.sequential @@ TestAspect.withLiveClock
 

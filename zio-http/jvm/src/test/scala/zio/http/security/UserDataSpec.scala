@@ -12,7 +12,7 @@ import zio.http.template.Dom
 import zio.http.netty.NettyConfig
 
 object UserDataSpec extends ZIOSpecDefault {
-    /*
+  /*
       - DOM-based XSS vulnerabilities are client-side and thus difficult to prevent. Any client-side vulnerable code could be sent by the server.
       Some clients implement escaping before sending requests and ZIO-HTTP could make some tools to make safer the use of a client.
 
@@ -39,17 +39,17 @@ object UserDataSpec extends ZIOSpecDefault {
   )
 
   val spec = suite("UserDataSpec")(
-    test("No sanitation and write to server"){
+    test("No sanitation and write to server") {
       // this is not a bug but could be a vulnerability used wrong
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
-        val endpoint     = Endpoint(Method.GET / "test")
+        val endpoint = Endpoint(Method.GET / "test")
           .query(QueryCodec.query("data"))
           .out[String]
-        val route        = endpoint.implementHandler(Handler.fromFunction { case (s: String) => 
+        val route    = endpoint.implementHandler(Handler.fromFunction { case (s: String) =>
           // writeToServer or other actions
-          s  
+          s
         })
-        val request      =
+        val request  =
           Request.get(URL(Path.root / "test", queryParams = QueryParams(("data", msg))))
         for {
           response <- route.toRoutes.runZIO(request)
@@ -57,14 +57,14 @@ object UserDataSpec extends ZIOSpecDefault {
         } yield assertTrue(body.contains(expectedResponse))
       }
     } @@ TestAspect.failing,
-    test("No sanitation and write to server2"){
+    test("No sanitation and write to server2") {
       // this is not a bug but could be a vulnerability used wrong
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
-        val endpoint     = Endpoint(Method.GET / "test")
+        val endpoint = Endpoint(Method.GET / "test")
           .in[Dom]
           .out[Dom]
-        val route        = endpoint.implementHandler(Handler.fromFunction(identity))
-        val request      =
+        val route    = endpoint.implementHandler(Handler.fromFunction(identity))
+        val request  =
           Request.post(URL(Path.root / "test"), Body.fromString(msg))
         for {
           response <- route.toRoutes.runZIO(request)
@@ -72,14 +72,16 @@ object UserDataSpec extends ZIOSpecDefault {
         } yield assertTrue(body.contains(expectedResponse))
       }
     } @@ TestAspect.failing,
-    test("Header injection"){
+    test("Header injection") {
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
-        val endpoint     = Endpoint(Method.GET / "test")
+        val endpoint = Endpoint(Method.GET / "test")
           .query(QueryCodec.query("data"))
           .out[Dom]
-        val route        = endpoint.implementHandler(Handler.fromFunction { case (s: String) => f(s)})
-        val request      =
-          Request.get(URL(Path.root / "test", queryParams = QueryParams(("data", msg)))).addHeader(Header.Accept(mediaType))
+        val route    = endpoint.implementHandler(Handler.fromFunction { case (s: String) => f(s) })
+        val request  =
+          Request
+            .get(URL(Path.root / "test", queryParams = QueryParams(("data", msg))))
+            .addHeader(Header.Accept(mediaType))
         for {
           response <- route.toRoutes.runZIO(request)
           body     <- response.body.asString
@@ -88,10 +90,14 @@ object UserDataSpec extends ZIOSpecDefault {
     },
     test("Path injection") {
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
-        val request          = Request.get(URL(Path.root / "test" / msg)).addHeader(Header.Accept(mediaType))
-        val route            = Routes(Endpoint(Method.GET / "test" / string("message")).out[Dom].implementHandler(Handler.fromFunction { case (s: String) => 
-          f(s)
-        }))
+        val request = Request.get(URL(Path.root / "test" / msg)).addHeader(Header.Accept(mediaType))
+        val route   = Routes(
+          Endpoint(Method.GET / "test" / string("message"))
+            .out[Dom]
+            .implementHandler(Handler.fromFunction { case (s: String) =>
+              f(s)
+            }),
+        )
         for {
           response <- route.runZIO(request)
           body     <- response.body.asString
@@ -100,14 +106,13 @@ object UserDataSpec extends ZIOSpecDefault {
     },
     test("Body injection") {
       check(tuples.zip(functions)) { case (mediaType, msg, expectedResponse, f) =>
-        val body     = Body.fromArray(msg.getBytes())
-        val request  = Request.post("/test", body).addHeader(Header.Accept(mediaType))
-        val route = Routes(Method.POST / "test" -> handler { (req: Request) => 
+        val body    = Body.fromArray(msg.getBytes())
+        val request = Request.post("/test", body).addHeader(Header.Accept(mediaType))
+        val route   = Routes(Method.POST / "test" -> handler { (req: Request) =>
           for {
             msg <- req.body.asString.orDie
           } yield Response.text(f(msg).encode)
-        }
-        )
+        })
         for {
           response <- route.runZIO(request)
           body     <- response.body.asString
@@ -122,7 +127,7 @@ object UserDataSpec extends ZIOSpecDefault {
         val body    = Body.fromString(msg)
         val request = Request.post("/test", body).addHeader(Header.Accept(mediaType))
         for {
-          port        <- Server.install(routes)
+          port     <- Server.install(routes)
           client   <- ZIO.service[Client]
           response <- client(request.updateURL(_ => URL.decode(s"http://localhost:$port/test").toOption.get))
         } yield assertTrue(response.headers.toString.contains(expectedResponse))

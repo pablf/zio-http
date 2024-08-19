@@ -29,7 +29,7 @@ object AuthSpec extends ZIOHttpSpec with HttpAppTestExtensions {
 
   private val successBasicHeader: Headers  = Headers(Header.Authorization.Basic("user", "resu"))
   private val failureBasicHeader: Headers  = Headers(Header.Authorization.Basic("user", "user"))
-  private val bearerContent: String          = "dummyBearerToken"
+  private val bearerContent: String        = "dummyBearerToken"
   private val bearerToken: Secret          = Secret(bearerContent)
   private val successBearerHeader: Headers = Headers(Header.Authorization.Bearer(bearerToken))
   private val failureBearerHeader: Headers = Headers(Header.Authorization.Bearer(bearerContent + "SomethingElse"))

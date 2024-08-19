@@ -15,10 +15,10 @@ object ExceptionSpec extends ZIOSpecDefault {
 
   val routesError = Routes(Method.GET / "error" -> Handler.ok.map(_ => throw new Throwable("BOOM!")))
   val routesFail  = Routes(
-    Method.GET / "fail" -> Handler.fail(new Throwable ("BOOM!")).sandbox.merge,
+    Method.GET / "fail" -> Handler.fail(new Throwable("BOOM!")).sandbox.merge,
   )
-  val routesDie  = Routes(
-    Method.GET / "die" -> Handler.die(new Throwable ("BOOM!")).sandbox.merge,
+  val routesDie   = Routes(
+    Method.GET / "die" -> Handler.die(new Throwable("BOOM!")).sandbox.merge,
   )
 
   val queryRoutes =
@@ -39,12 +39,12 @@ object ExceptionSpec extends ZIOSpecDefault {
     )
 
   val spec = suite("ExceptionSpec")(
-    test("Bad endpoint leaks stacktrace"){
+    test("Bad endpoint leaks stacktrace") {
       // calls `Response.fromCause` that prints the stacktrace
       val badEndpoint = Endpoint(Method.GET / "test")
         .out[String]
-      val route        = badEndpoint.implementHandler(Handler.fromFunction { _ => "string"})
-      val request      =
+      val route       = badEndpoint.implementHandler(Handler.fromFunction { _ => "string" })
+      val request     =
         Request.get(url"/test").addHeader(Header.Accept(MediaType.text.`html`))
       for {
         response <- route.toRoutes.runZIO(request).map(_.headers.toString)
@@ -52,28 +52,28 @@ object ExceptionSpec extends ZIOSpecDefault {
     } @@ TestAspect.failing,
     test("Throw inside handle doesn't leak stacktrace2") {
       for {
-        port   <- Server.install(routesError)
+        port     <- Server.install(routesError)
         client   <- ZIO.service[Client]
         response <- client(Request.get(s"http://localhost:$port/error")).map(_.headers.toString)
       } yield assertTrue(!response.contains("Exception in thread"))
     },
     test("Die handle doesn't leak stacktrace2") {
       for {
-        port   <- Server.install(routesDie)
+        port     <- Server.install(routesDie)
         client   <- ZIO.service[Client]
         response <- client(Request.get(s"http://localhost:$port/die")).map(_.headers.toString)
       } yield assertTrue(!response.contains("Exception in thread"))
     },
     test("Failing handle doesn't leak stacktrace") {
       for {
-        port   <- Server.install(routesFail)
+        port     <- Server.install(routesFail)
         client   <- ZIO.service[Client]
         response <- client(Request.get(s"http://localhost:$port/fail")).map(_.headers.toString)
       } yield assertTrue(!response.contains("Exception in thread"))
     },
     test("FromZIO doesn't leak stacktrace") {
       for {
-        port   <- Server.install(queryRoutes)
+        port     <- Server.install(queryRoutes)
         client   <- ZIO.service[Client]
         response <- client(Request.get(s"http://localhost:$port/search")).map(_.headers.toString)
       } yield assertTrue(!response.contains("Exception in thread"))
