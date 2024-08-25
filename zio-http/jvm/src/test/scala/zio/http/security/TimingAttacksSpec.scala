@@ -82,7 +82,7 @@ object TimingAttacksSpec extends ZIOSpecDefault {
 
   val passwd = "some-secret" * 1000 ++ "-"
 
-  val basicAuthM     = HandlerAspect.basicAuth { c => Secret(passwd) equals c.upassword }
+  val basicAuthM     = HandlerAspect.basicAuth { c => c.upassword equals Secret(passwd) }
   val basicAuthM2    = HandlerAspect.basicAuth("user", passwd)
   val basicAuthZIOM  = HandlerAspect.basicAuthZIO { c => ZIO.succeed(Secret(passwd) equals c.upassword) }
   val bearerAuthM    = HandlerAspect.bearerAuth { token => Secret(passwd) equals token }
@@ -176,7 +176,7 @@ object TimingAttacksSpec extends ZIOSpecDefault {
       assertZIO(boxTest(ZIO.attempt { secret equals sameLength }, ZIO.attempt { secret equals differentLength }))(
         equalTo(true),
       )
-    } @@ TestAspect.failing,
+    },
     test("Secret vulnerability inverted") {
       val secret          = zio.Config.Secret("some-secret" * 1000)
       val differentLength = zio.Config.Secret("some-secre" * 1000)
