@@ -158,7 +158,6 @@ lazy val zioHttp = crossProject(JSPlatform, JVMPlatform)
   )
   .jvmSettings(
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    dependencyOverrides += `zio`,
     libraryDependencies ++= Seq(
       `zio`,
       `zio-streams`,

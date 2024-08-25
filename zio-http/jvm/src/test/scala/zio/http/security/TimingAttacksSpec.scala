@@ -97,12 +97,12 @@ object TimingAttacksSpec extends ZIOSpecDefault {
   private val sameLengthHeaderBasic = Header.Authorization.Basic("user", "some-secrez" * 1000 ++ "-")
   private val goodHeaderBasic       = Header.Authorization.Basic("user", "some-secret" * 1000 ++ "-")
   private val almostGoodHeaderBasic = Header.Authorization.Basic("user", "some-secret" * 1000 ++ "a")
-  private val badHeaderBasic        = Header.Authorization.Basic("user", "a")
+  private val badHeaderBasic        = Header.Authorization.Basic("user", "some-secret" * 1000)
 
   private val sameLengthHeaderBearer = Header.Authorization.Bearer("some-secrez" * 1000 ++ "-")
   private val goodHeaderBearer       = Header.Authorization.Bearer("some-secret" * 1000 ++ "-")
   private val almostGoodHeaderBearer = Header.Authorization.Bearer("some-secret" * 1000 ++ "a")
-  private val badHeaderBearer        = Header.Authorization.Bearer("a")
+  private val badHeaderBearer        = Header.Authorization.Bearer("some-secret" * 1000)
 
   def suiteFor(name: String)(
     app: () => Handler[Any, Nothing, Request, Response],
@@ -151,15 +151,15 @@ object TimingAttacksSpec extends ZIOSpecDefault {
       badReqBearer,
       sameLengthReqBearer,
     ),
-    /*test("basicAuth doesn't leak that user is wrong, good password") {
+    test("basicAuth doesn't leak that user is wrong, good password") {
 
       val basicAuthM = HandlerAspect.basicAuth("user", passwd)
       val req1       = Request.get(url"").addHeader(Header.Authorization.Basic("user", passwd))
       val req2       = Request.get(url"").addHeader(Header.Authorization.Basic("badUser", passwd))
 
       def app() = (Handler.ok @@ basicAuthM).merge
-      assertZIO(boxTest2(app _, req1, req2))(equalTo(false))
-    } @@ TestAspect.failing,*/
+      assertZIO(boxTest2(app _, req1, req2))(equalTo(true))
+    },
     test("basicAuth doesn't leak that user is wrong, bad password") {
 
       val basicAuthM = HandlerAspect.basicAuth("user", passwd)
