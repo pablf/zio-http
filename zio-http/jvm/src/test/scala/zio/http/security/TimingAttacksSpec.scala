@@ -61,6 +61,8 @@ object TimingAttacksSpec extends ZIOSpecDefault {
       val statisticsA = statistics2(h, slow)
       val statisticsB = statistics2(h, fast)
       val diff        = statisticsA._1 - statisticsB._2
+      println(statisticsA)
+      println(statisticsB)
       !(diff > statisticsB._2 / 20)
     }
 
