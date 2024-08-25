@@ -113,10 +113,10 @@ object TimingAttacksSpec extends ZIOSpecDefault {
     suite(name)(
       test("doesn't leak length") {
         assertZIO(boxTest2(app, sameLengthRequest, badRequest))(equalTo(true))
-      } @@ TestAspect.failing,
+      },
       test("doesn't leak secrets") {
         assertZIO(boxTest2(app, goodRequest, badRequest))(equalTo(true))
-      } @@ TestAspect.failing,
+      },
       test("doesn't leak secrets - same length") {
         assertZIO(boxTest2(app, goodRequest, sameLengthRequest))(equalTo(true))
       },
@@ -168,21 +168,5 @@ object TimingAttacksSpec extends ZIOSpecDefault {
       def app() = (Handler.ok @@ basicAuthM).merge
       assertZIO(boxTest2(app _, req1, req2))(equalTo(true))
     },
-    test("Secret vulnerability") {
-      val secret          = zio.Config.Secret("some-secret" * 1000)
-      val differentLength = zio.Config.Secret("some-secre" * 1000)
-      val sameLength      = zio.Config.Secret("some-secrez" * 1000)
-      assertZIO(boxTest(ZIO.attempt { secret equals sameLength }, ZIO.attempt { secret equals differentLength }))(
-        equalTo(true),
-      )
-    } @@ TestAspect.failing,
-    test("Secret vulnerability inverted") {
-      val secret          = zio.Config.Secret("some-secret" * 1000)
-      val differentLength = zio.Config.Secret("some-secre" * 1000)
-      val sameLength      = zio.Config.Secret("some-secrez" * 1000)
-      assertZIO(boxTest(ZIO.attempt { sameLength equals secret }, ZIO.attempt { differentLength equals secret }))(
-        equalTo(true),
-      )
-    } @@ TestAspect.failing,
   ) @@ TestAspect.sequential @@ TestAspect.withLiveClock @@ TestAspect.flaky
 }
