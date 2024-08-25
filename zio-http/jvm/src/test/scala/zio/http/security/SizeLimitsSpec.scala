@@ -90,7 +90,7 @@ object SizeLimitsSpec extends ZIOHttpSpec {
 
   def testLimit(size: Int, maxSize: Int, lstTestSize: Int, mkRequest0: Int => String => Request, badStatus: Status) =
     testLimit0[String](maxSize, lstTestSize, "A" * size, n => (_ ++ "A"), mkRequest0, badStatus)
-  val spec: Spec[TestEnvironment with Scope, Any] = suite("OutOfMemorySpec")(
+  val spec: Spec[TestEnvironment with Scope, Any] = suite("SizeLimitsSpec")(
     suite("limits are configurable")(
       test("infinite segment url") {
         val urlSize = CUSTOM_URL_SIZE - 113
