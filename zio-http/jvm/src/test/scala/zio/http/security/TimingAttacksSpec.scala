@@ -61,8 +61,7 @@ object TimingAttacksSpec extends ZIOSpecDefault {
       val statisticsA = statistics2(h, slow)
       val statisticsB = statistics2(h, fast)
       val diff        = statisticsA._1 - statisticsB._2
-      println(statisticsA)
-      println(statisticsB)
+      println(s"$statisticsA, $statisticsB")
       !(diff > statisticsB._2 / 20)
     }
 
@@ -169,6 +168,27 @@ object TimingAttacksSpec extends ZIOSpecDefault {
 
       def app() = (Handler.ok @@ basicAuthM).merge
       assertZIO(boxTest2(app _, req1, req2))(equalTo(true))
+    },
+    test("Secret vulnerability") {
+      val secret          = zio.Config.Secret("some-secret" * 1000)
+      val differentLength = zio.Config.Secret("some-secre" * 1000)
+      val sameLength      = zio.Config.Secret("some-secrez" * 1000)
+      assertZIO(boxTest(ZIO.attempt { secret equals sameLength }, ZIO.attempt { secret equals differentLength }))(
+        equalTo(true),
+      )
+    } @@ TestAspect.failing,
+    test("Secret vulnerability inverted") {
+      val secret          = zio.Config.Secret("some-secret" * 1000)
+      val differentLength = zio.Config.Secret("some-secre" * 1000)
+      val sameLength      = zio.Config.Secret("some-secrez" * 1000)
+      assertZIO(boxTest(ZIO.attempt { sameLength equals secret }, ZIO.attempt { differentLength equals secret }))(
+        equalTo(true),
+      )
+    } @@ TestAspect.failing,
+    test("Secret non vulnerability") {
+      val secret     = zio.Config.Secret("some-secret" * 1000)
+      val sameLength = zio.Config.Secret("some-secrez" * 1000)
+      assertZIO(boxTest(ZIO.attempt { secret equals secret }, ZIO.attempt { secret equals sameLength }))(equalTo(true))
     },
   ) @@ TestAspect.sequential @@ TestAspect.withLiveClock @@ TestAspect.flaky
 }
